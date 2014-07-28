@@ -1,0 +1,76 @@
+@(title: String)(content: Html)
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>@title</title>
+    <link rel='icon' type='image/png' href='@routes.Assets.at("images/favicon.png")'>
+    <link rel='stylesheet' href='@routes.WebJarAssets.at(WebJarAssets.locate("bootstrap.min.css"))'>
+    <!-- <link rel='stylesheet' href='@routes.WebJarAssets.at(WebJarAssets.locate("bootstrap-responsive.min.css"))'> -->
+    <link rel='stylesheet' href='@routes.Assets.at("stylesheets/main.css")'>
+    <script type='text/javascript' src='@routes.WebJarAssets.at(WebJarAssets.locate("jquery.min.js"))'></script>
+    <script type='text/javascript' src='@routes.WebJarAssets.at(WebJarAssets.locate("bootstrap.min.js"))'></script>
+    <script type='text/javascript' src='@routes.Assets.at("javascript/chart.min.js")'></script>
+    <style>
+        body {
+        margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+<div class="navbar navbar-fixed-top navbar-inverse">
+    <div class="navbar-inner">
+        <a class="brand" href="#"><img src='@routes.Assets.at("images/mongodb_leaf.png")'/></a>
+        <ul class="nav">
+            <li><a href="@routes.Application.index()">Home</a></li>
+            <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                    Google Compute Engine
+                    <span class="caret"></span>
+                </a>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a href="@routes.GoogleComputeEngineApplication.gceIndex(None)">
+                            <i class="icon-eye-open"></i>
+                            Cluster status
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@routes.GoogleComputeEngineApplication.createClusterWizard()">
+                            <i class="icon-leaf"></i>
+                            Create cluster
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@routes.GoogleComputeEngineApplication.createClusterWizard()">
+                            <i class="icon-pencil"></i>
+                            Edit cluster
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@routes.GoogleComputeEngineApplication.deleteClusterWizard()">
+                            <i class="icon-trash"></i>
+                            Delete cluster
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@routes.GoogleComputeEngineApplication.getClusterPrivateKey()" target="_blank">
+                            <i class="icon-download"></i>
+                            Cluster SSH key
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <li><a class="disabled" href="#">YCSB Tests</a></li>
+        </ul>
+    </div>
+</div>
+
+<p>&nbsp;</p>
+
+<div class="container">
+    @content
+</div>
+</body>
+</html>

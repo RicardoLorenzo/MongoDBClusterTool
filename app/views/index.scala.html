@@ -1,0 +1,78 @@
+@(url: String, code: Option[String])
+
+@main("MongoDB") {
+<script src='@routes.Assets.at("javascripts/index.js")'></script>
+<span id="gce-operations" data-ws-url="@request.host@routes.GoogleComputeEngineApplication.gceOperations()"></span>
+
+@if(url == "/gce") {
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <i class="icon-leaf icon-white"></i>
+            Operations
+        </h4>
+    </div>
+    <div class="panel-body">
+        <div class="operations-container">
+            <table class="table table-condensed">
+                <!--<thead>
+                <tr>
+                    <th>Operation</th>
+                    <th>Start date</th>
+                    <th>Status</th>
+                    <th>User</th>
+                    <th>Progress</th>
+                </tr>
+                </thead>-->
+                <tbody id="operations"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="panel panel-primary">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            <i class="icon-leaf icon-white"></i>
+            Cluster instances
+        </h4>
+    </div>
+    <div class="panel-body">
+        <div style="width: 98%">
+            <canvas id="running"></canvas>
+        </div>
+    </div>
+</div>
+
+<!--<div class="row">
+    <div class="col-xs-6 col-md-4">
+        <div class="thumbnail">
+            <div style="width: 400px">
+                <canvas id="nodes"></canvas>
+                <div class="caption">
+                    <h3>Node types</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xs-6 col-md-4">
+        <div class="thumbnail">
+            <div style="width: 400px">
+                <canvas id="running"></canvas>
+                <div class="caption">
+                    <h3>Running nodes</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>-->
+
+<script>
+            getOperations();
+            graphInstancesData();
+</script>
+}
+
+<!-- <button id="gce-instances">Google instances</button> -->
+
+}

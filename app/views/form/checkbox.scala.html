@@ -1,0 +1,20 @@
+@(field: Field, label:String, name:String, checked:Boolean, help:String)
+
+<div class="control-group @if(field.hasErrors) {error}">
+    <label class="control-label" for="@field.id">@label</label>
+
+    <div class="controls" id="@field.id">
+        <label class="checkbox inline">
+            <input
+                    type="checkbox"
+                    name="@(field.name + "[]")"
+            id="@name"
+            value="@name"
+            @if(checked) { checked="checked" }/>
+        </label>
+
+        <p class="help-block">@help</p>
+
+        <p class="help-block">@{field.error.map { error => error.message }}</p>
+    </div>
+</div>

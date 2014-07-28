@@ -1,0 +1,139 @@
+@(clusterCreationForm: Form[views.data.ClusterCreationForm],
+machineTypes:Map[String, Boolean],
+images:Map[String, Boolean],
+networks:Map[String, Boolean],
+diskTypes:Map[String, Boolean],
+diskRaids:Map[String, Boolean],
+fileSystems:Map[String, Boolean],
+cgroups:Boolean)
+
+@import form._
+
+@main(title = "MongoDB") {
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                MongoDB sharded cluster creation wizard
+            </h4>
+        </div>
+        <div class="panel-body">
+            @if(flash.containsKey("success")) {
+            <div id="success-message" class="alert alert-success">
+                @flash.get("success")
+            </div>
+            <p></p>
+
+            <div class="center-block">
+                <a class="btn btn-primary" href="@routes.GoogleComputeEngineApplication.gceIndex(None)">Accept</a>
+            </div>
+            } else {
+            @helper.form(routes.GoogleComputeEngineApplication.createClusterWizardPost(), 'class -> "form-horizontal") {
+            <fieldset>
+                <!-- Shard nodes -->
+                @text(clusterCreationForm("clusterName"),
+                label = "Cluster name",
+                placeholder = "cluster name",
+                help = "Please indicate the cluster name")
+
+                <!-- Shard nodes -->
+                @text(clusterCreationForm("shardNodes"),
+                label = "Number of shard nodes",
+                placeholder = "4",
+                help = "Please enter the number of shard nodes")
+
+                <!-- Processes -->
+                @text(clusterCreationForm("processes"),
+                label = "MongoDB processes",
+                placeholder = "4",
+                help = "Please enter the number of processes")
+
+                <!-- Node disks -->
+                @text(clusterCreationForm("nodeDisks"),
+                label = "Number of disks per node",
+                placeholder = "4",
+                help = "Please enter the number of disks per node")
+
+                <!-- Machine type -->
+                @select(clusterCreationForm("machineType"),
+                "Choose the machine type",
+                machineTypes,
+                false,
+                "Select the machine type")
+
+                <!-- Image -->
+                @select(clusterCreationForm("image"),
+                "Choose the OS image",
+                images,
+                false,
+                "Select the OS image")
+
+                <!-- Networks -->
+                @select(clusterCreationForm("network"),
+                "Choose the network",
+                networks,
+                false,
+                "Select the network")
+
+                <!-- Disk types -->
+                @select(clusterCreationForm("diskType"),
+                "Data disks type",
+                diskTypes,
+                false,
+                "Select the disk type")
+
+                <!-- Disk types -->
+                @select(clusterCreationForm("diskRaid"),
+                "Data disk RAID",
+                diskRaids,
+                false,
+                "Select the disk RAID configuration")
+
+                <!-- Filesystems -->
+                @select(clusterCreationForm("fileSystem"),
+                "Data filesystem",
+                fileSystems,
+                false,
+                "Select the filesystem for data disks")
+
+                <!-- Data disk size -->
+                @text(clusterCreationForm("dataDiskSizeGb"),
+                label = "Data disk size (GB)",
+                placeholder = "50",
+                help = "Please enter the data disk size")
+
+                <!-- Node disks -->
+                @text(clusterCreationForm("rootDiskSizeGb"),
+                label = "OS disk size (GB)",
+                placeholder = "16",
+                help = "Please enter the OS disk size")
+
+                <!-- Cgroups -->
+                @checkbox(clusterCreationForm("cgroups"),
+                "Enable kernel control groups",
+                "cgroups",
+                cgroups,
+                "Check to enable kernel control groups")
+
+                <div class="control-group">
+                    <div class="controls">
+                        <input id="submit" type="submit" value="Proceed" class="btn btn-primary">
+                        <button id="cancel" class="btn cancel"
+                                formaction="@routes.GoogleComputeEngineApplication.gceIndex(None)" formmethod="get">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+            }
+            }
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+        </div>
+    </div>
+</div>
+}

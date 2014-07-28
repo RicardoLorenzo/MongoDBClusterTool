@@ -1,0 +1,20 @@
+@(field: Field, label: String, buttonNameList: List[String], help:String)
+<div class="control-group @if(field.hasErrors) {error}">
+    <label class="control-label" for="@field.id">@label</label>
+
+    <div id="@(field.id + "s")" class="controls">
+        @for(buttonName <- buttonNameList) {
+        <label class="radio">
+            <input
+                    type="radio"
+                    name="@field.name"
+                    id="@buttonName"
+                    value="@buttonName"
+            @if(buttonName == field.value.getOrElse("")) {checked} />
+            @buttonName
+        </label>
+        }
+        <p class="help-block">@help</p>
+        <p class="help-block">@{field.error.map { error => error.message }}</p>
+    </div>
+</div>

@@ -1,0 +1,20 @@
+@(message: String)
+
+@main("MongoDB") {
+<div class="panel panel-danger">
+    <div class="panel-heading">
+        <h4 class="panel-title">
+            Error
+        </h4>
+    </div>
+    <div class="panel-body">
+        <p>@message</p>
+
+        <p></p>
+
+        <div class="center-block">
+            <a class="btn btn-primary" href="@routes.Application.index()">Accept</a>
+        </div>
+    </div>
+</div>
+}
