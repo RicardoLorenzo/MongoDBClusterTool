@@ -26,11 +26,12 @@ Installation
 Create you Google GCE configurationi in conf/google.conf.
 
 ```
-  google.clientId="<client id>"
-  google.clientEmail="<service email>"
-  google.clientSecret=<secretkey>
+  google.clientId="<google client id>"
+  google.clientEmail="<google service email>"
+  google.clientSecret=<google secretkey>
   application.directory = /Users/ricardolorenzo/Development/MongoDBClusterTool/store
-  google.projectId=<project>
+  google.projectId=<google project name>
+  google.bucketId=<google cloud storage bucket>
   google.zoneName=us-central1-b
 ```
 
