@@ -20,17 +20,18 @@ Installation
 ============
 
 ```
-  git clone https://github.com/RicardoLorenzo/MongoDBClusterTool4.git
+  git clone https://github.com/RicardoLorenzo/MongoDBClusterTool.git
 ```
 
 Create you Google GCE configurationi in conf/google.conf.
 
 ```
-  google.clientId="<client id>"
-  google.clientEmail="<service email>"
-  google.clientSecret=<secretkey>
-  google.refreshTokenPath=/tmp/refresh.token
-  google.projectId=<project>
+  google.clientId="<google client id>"
+  google.clientEmail="<google service email>"
+  google.clientSecret=<google secretkey>
+  application.directory = /Users/ricardolorenzo/Development/MongoDBClusterTool/store
+  google.projectId=<google project name>
+  google.bucketId=<google cloud storage bucket>
   google.zoneName=us-central1-b
 ```
 
@@ -39,7 +40,7 @@ You should get this info from your GCE console (https://console.developers.googl
 Finally you can run the application with the following command
 
 ```
-  cd MongoDBClusterTool4GoogleComputeEngine
+  cd MongoDBClusterTool
   ./activator run
 ```
 
