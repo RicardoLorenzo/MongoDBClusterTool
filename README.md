@@ -40,7 +40,7 @@ You should get this info from your GCE console (https://console.developers.googl
 Finally you can run the application with the following command
 
 ```
-  cd MongoDBClusterTool4GoogleComputeEngine
+  cd MongoDBClusterTool
   ./activator run
 ```
 
