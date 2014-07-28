@@ -29,7 +29,7 @@ Create you Google GCE configurationi in conf/google.conf.
   google.clientId="<client id>"
   google.clientEmail="<service email>"
   google.clientSecret=<secretkey>
-  google.refreshTokenPath=/tmp/refresh.token
+  application.directory = /Users/ricardolorenzo/Development/MongoDBClusterTool/store
   google.projectId=<project>
   google.zoneName=us-central1-b
 ```
