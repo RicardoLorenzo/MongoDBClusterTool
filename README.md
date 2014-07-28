@@ -20,7 +20,7 @@ Installation
 ============
 
 ```
-  git clone https://github.com/RicardoLorenzo/MongoDBClusterTool4.git
+  git clone https://github.com/RicardoLorenzo/MongoDBClusterTool.git
 ```
 
 Create you Google GCE configurationi in conf/google.conf.
