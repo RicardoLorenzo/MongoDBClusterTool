@@ -25,6 +25,7 @@ import utils.file.FileUtils;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.storage.GoogleCloudStorageClient;
 import utils.puppet.PuppetConfiguration;
+import utils.puppet.PuppetConfigurationException;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -124,6 +125,8 @@ public class ConfigurationService {
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
+        } catch(PuppetConfigurationException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
         return f;
