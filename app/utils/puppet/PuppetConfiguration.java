@@ -16,7 +16,6 @@
 
 package utils.puppet;
 
-import utils.gce.GoogleComputeEngineException;
 import utils.puppet.disk.PuppetDiskConfiguration;
 
 import java.util.ArrayList;
@@ -53,7 +52,7 @@ public class PuppetConfiguration {
         return SUPPORTED_FILESYSTEMS;
     }
 
-    public static String getNodeStartupScriptContent(String serverName) throws GoogleComputeEngineException {
+    public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
         StringBuilder sb = new StringBuilder();
         sb.append("#!/bin/bash\n\n");
         sb.append("echo \"Acquire::http::Proxy \\\"http://");
@@ -96,15 +95,32 @@ public class PuppetConfiguration {
         return sb.toString();
     }
 
-    public static String getPuppetStartupScriptContent(String serverName) throws GoogleComputeEngineException {
+    public static String getPuppetStartupScriptContent(String serverName, String networkRange) throws PuppetConfigurationException {
+        if(networkRange == null || networkRange.isEmpty()) {
+            throw new IllegalArgumentException("incorrect network range");
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("#!/bin/bash\n\n");
 
+        /**
+         * Apache proxy connfiguration
+         */
         sb.append("if [ -z \"$(dpkg -l | grep apache2)\" ]; then\n");
         sb.append("  apt-get -y install apache2 \n");
+        sb.append("  if ! [ -e /etc/apache2/mods-enabled/proxy.load ]; then\n");
+        sb.append("    ln -s /etc/apache2/mods-available/proxy.load /etc/apache2/mods-enabled/proxy.load\n");
+        sb.append("    ln -s /etc/apache2/mods-available/proxy_http.load /etc/apache2/mods-enabled/proxy_http.load\n");
+        sb.append("    echo \"ProxyRequests On\nProxyPreserveHost On\n\n<Proxy *>\n  Order deny,allow\n");
+        sb.append("  Deny from all\n  Allow from ");
+        sb.append(networkRange);
+        sb.append("\n</Proxy>\" > /etc/apache2/sites-available/proxy");
+        sb.append("  fi\n");
         sb.append("fi\n");
 
-
+        /**
+         * Puppet basic configuration
+         */
         sb.append("if [ -z \"$(dpkg -l | grep puppetmaster)\" ]; then\n");
         sb.append("  if [ -z \"$(dpkg -l | grep unzip)\" ]; then\n    apt-get -y install unzip\n  fi\n");
         sb.append("  apt-get -y install puppetmaster\n");
@@ -119,7 +135,6 @@ public class PuppetConfiguration {
         /**
          * TODO Puppet main.pp configuration into /etc/puppet/manifests/site.pp
          */
-
         sb.append("  if ! [ -e /etc/puppet/files ]; then\n    mkdir -p /etc/puppet/files\n  fi\n");
         sb.append("  echo \"GRUB_DEFAULT=0\nGRUB_TIMEOUT=0\nGRUB_DISTRIBUTOR=\\\"Debian\\\"\n");
         sb.append("GRUB_CMDLINE_LINUX_DEFAULT=\\\"quiet\\\"\n");

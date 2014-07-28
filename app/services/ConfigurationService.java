@@ -43,8 +43,9 @@ public class ConfigurationService {
     public static final String NODE_TAG_CONF = "config";
     public static final String NODE_TAG_SHARD = "shard";
     public static final String PUPPET_AUTOSTART_SCRIPT = "http://storage.googleapis.com/peta-mongo/autostart/mongodb_master_autostart.sh";
+    private static GoogleAuthenticationService authService;
     private static GoogleComputeEngineService googleComputeService;
-    private static GoogleCloudStorageClient googleStorageService;
+    private static GoogleCloudStorageClient googleStorageClient;
     private static final String projectId;
     private static final String bucketId;
     private static final String applicationDirectory;
@@ -55,14 +56,23 @@ public class ConfigurationService {
     }
 
     @Inject
-    void setConfigurationService(@Qualifier("gce-service") GoogleCloudStorageClient googleService) {
-        ConfigurationService.googleStorageService = googleService;
+    void setConfigurationService(@Qualifier("gauth-service") GoogleAuthenticationService googleService) {
+        ConfigurationService.authService = googleService;
     }
 
     static {
         applicationDirectory = PlayConfiguration.getProperty("application.directory");
         projectId = PlayConfiguration.getProperty("google.projectId");
         bucketId = PlayConfiguration.getProperty("google.bucketId");
+    }
+
+    private static void checkGoogleAuthentication() throws GoogleComputeEngineException {
+        if(googleStorageClient == null) {
+            if(authService.getCredential() == null) {
+                throw new GoogleComputeEngineException("not authenticated on Google");
+            }
+            googleStorageClient = new GoogleCloudStorageClient(authService.getAuthentication());
+        }
     }
 
     private static File getClusterNameFile() {
@@ -119,8 +129,9 @@ public class ConfigurationService {
         return f;
     }
 
-    public String writePuppetStartupScript() {
-        //googleStorageService.putFile("p");
+    public String writePuppetStartupScript() throws GoogleComputeEngineException {
+        checkGoogleAuthentication();
+        //googleStorageClient.putFile("p");
         return null;
     }
 
