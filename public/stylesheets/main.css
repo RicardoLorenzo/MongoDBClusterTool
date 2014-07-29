@@ -185,3 +185,12 @@
 .operations-progress {
    width: 200px;
 }
+
+textarea.puppet {
+    width: 99%;
+    padding: 2px;
+}
+
+img.spinner {
+    visibility: hidden;
+}

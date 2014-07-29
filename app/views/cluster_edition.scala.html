@@ -1,0 +1,65 @@
+@(clusterEditionForm: Form[views.data.ClusterEditionForm],
+fileNames:Map[String, Boolean])
+
+@import form._
+
+@main(title = "MongoDB") {
+<script src='@routes.Assets.at("javascripts/index.js")'></script>
+
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                MongoDB puppet configuration editor
+            </h4>
+        </div>
+        <div class="panel-body">
+            @if(flash.containsKey("success")) {
+            <div id="success-message" class="alert alert-success">
+                @flash.get("success")
+            </div>
+            }
+            @helper.form(routes.ConfigurationApplication.updatePuppetConfiguration(), 'class -> "form-horizontal") {
+            <fieldset>
+                <!-- Puppet files -->
+                @selectWithSpinner(clusterEditionForm("fileName"),
+                "Puppet file",
+                fileNames,
+                false,
+                "Select the Puppet configuration file")
+
+                <textarea id="fileContent" name="fileContent" class="puppet" rows="20"></textarea>
+
+
+                <p>&nbsp;</p>
+
+                <div class="control-group">
+                    <div class="controls">
+                        <input id="submit" type="submit" value="Save file" class="btn btn-primary">
+                        <button id="cancel" class="btn cancel"
+                                formaction="@routes.GoogleComputeEngineApplication.gceIndex(None)" formmethod="get">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+            }
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+        </div>
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        var fileName = document.getElementById('fileName');
+        fileName.onchange = function() {
+            getPuppetManifest(fileName.value);
+        }
+    }
+</script>
+}

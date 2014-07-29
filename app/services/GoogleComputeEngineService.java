@@ -243,7 +243,8 @@ public class GoogleComputeEngineService {
         return client.instanceExists(instance_name.toString());
     }
 
-    public String getClusterPublicAddress() throws GoogleComputeEngineException{
+    public String getClusterPublicAddress() throws GoogleComputeEngineException {
+        checkAuthentication();
         String clusterName = configurationService.getClusterName();
         StringBuilder instance_name = new StringBuilder();
         instance_name.append(clusterName);

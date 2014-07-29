@@ -110,7 +110,7 @@ public class PuppetConfiguration {
         sb.append("    require => Exec['mongodb-10gen']\n  }\n\n");
         sb.append("  service { 'mongodb':\n    ensure => stopped,\n    enable => false,\n");
         sb.append("    require => File['/etc/init.d/mongodb-microshards']\n  }\n\n");
-        sb.append("#\n#  WARNING: This is a workaround to enable cgroups kernel module. This workaround imply");
+        sb.append("#\n#  WARNING: This is a workaround to enable cgroups kernel module. This workaround imply\n");
         sb.append("#  a node restart, but happen only once.\n");
         sb.append("  exec { 'test-mongodb-microshards':\n    command => '/usr/bin/test 0',\n");
         sb.append("    onlyif => \\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups |");
@@ -131,8 +131,8 @@ public class PuppetConfiguration {
 
     public static String generateMongoBaseClassManifest() {
         StringBuilder sb = new StringBuilder();
-        sb.append("class mongodb-base {");
-        sb.append("  class { 'timezone':\n   timezone => 'UTC'\n  }\n\n");
+        sb.append("class mongodb-base {\n");
+        sb.append("  class {\n 'timezone':\n   timezone => 'UTC'\n  }\n\n");
         sb.append("  package { 'ntp':\n    ensure => present\n  }\n\n");
         sb.append("  service { 'ntp':\n    ensure => running,\n    enable => true\n  }\n\n");
         sb.append("  file { '/etc/hosts':\n    owner => 'root',\n    group => 'root',\n");
@@ -140,7 +140,7 @@ public class PuppetConfiguration {
         sb.append("  group { 'mongodb':\n    ensure => present\n  }\n\n");
         sb.append("  user { 'mongodb':\n    ensure => present,\n    gid => 'mongodb',\n");
         sb.append("    shell => '/bin/bash',\n    require => Group['mongodb']\n  }\n\n");
-        sb.append("#\n#  WARNING: Is important to perform an apt-get update before try to install");
+        sb.append("#\n#  WARNING: Is important to perform an apt-get update before try to install\n");
         sb.append("#  any package.\n");
         sb.append("  exec { 'apt-get update':\n    notify => Exec['mongodb-10gen'],\n");
         sb.append("    command => '/usr/bin/apt-get update',\n    subscribe => Apt::Source['mongodb']\n  }\n\n");
@@ -150,7 +150,7 @@ public class PuppetConfiguration {
         sb.append("    release => 'dist',\n    repos => '10gen',\n    key => '7F0CEB10',\n");
         sb.append("    key_server => 'keyserver.ubuntu.com',\n    include_src => false,\n");
         sb.append("    require => Apt::Key['mongodb']\n  }\n");
-        sb.append("#\n#  WARNING: Cannot use 'package' because of the 10gen repo, so it needs to trigger");
+        sb.append("#\n#  WARNING: Cannot use 'package' because of the 10gen repo, so it needs to trigger\n");
         sb.append("#  an 'apt-get update' before.\n");
         sb.append("  exec { 'mongodb-10gen':\n");
         sb.append("    command => '/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools',\n");

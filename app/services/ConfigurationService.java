@@ -157,6 +157,7 @@ public class ConfigurationService {
             destinationPath.append("/");
             destinationPath.append(name);
             try {
+                client.connect(SSHClient.DEFAULT_USER);
                 for(Map.Entry<String, byte[]> e : client.getFiles(destinationPath.toString()).entrySet()) {
                     return new String(e.getValue());
                 }
@@ -191,6 +192,7 @@ public class ConfigurationService {
             destinationPath.append("/");
             destinationPath.append(name);
             try {
+                client.connect(SSHClient.DEFAULT_USER);
                 client.sendFile(data, destinationPath.toString(), permissions);
             } catch(SSHException e) {
                 throw new GoogleComputeEngineException(e);
