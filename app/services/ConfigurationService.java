@@ -128,7 +128,7 @@ public class ConfigurationService {
     public static File getNodeStartupScript(String clusterName) throws GoogleComputeEngineException {
         File f = getNodeStartupScriptFile();
         try {
-            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(clusterName));
+            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(getPuppetServerName(clusterName)));
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {

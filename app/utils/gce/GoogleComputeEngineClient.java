@@ -26,9 +26,11 @@ import com.google.api.services.compute.model.*;
 import conf.PlayConfiguration;
 import play.libs.Json;
 import utils.CappedList;
+import utils.file.FileUtils;
 import utils.gce.auth.GoogleComputeEngineAuth;
 import utils.security.GoogleComputeEngineFingerprint;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -424,7 +426,7 @@ public class GoogleComputeEngineClient {
     }
 
     public String createInstance(String name, String machineType, List<String> network, Integer sizeGb, String sourceImage,
-                               Map<String, String> dataDisks, List<String> tags, List<String> sshKeys, String startupScriptUrl,
+                               Map<String, String> dataDisks, List<String> tags, List<String> sshKeys, String startupScript,
                                boolean publicAddress)
             throws GoogleComputeEngineException {
         if(!zoneName.isPresent()) {
@@ -476,14 +478,24 @@ public class GoogleComputeEngineClient {
                 t.setItems(tags);
                 instance.setTags(t.encodeFingerprint(GoogleComputeEngineFingerprint.getSha1Hash(t.toString())));
             }
-            if(Optional.ofNullable(startupScriptUrl).isPresent() ||
+            if(Optional.ofNullable(startupScript).isPresent() ||
                     (sshKeys != null && !sshKeys.isEmpty())) {
                 Metadata m = new Metadata();
                 List<Metadata.Items> itemList = new ArrayList<>();
-                if(Optional.ofNullable(startupScriptUrl).isPresent()) {
+                if(Optional.ofNullable(startupScript).isPresent()) {
                     Metadata.Items items = new Metadata.Items();
-                    items.setKey("startup-script-url");
-                    items.setValue(startupScriptUrl);
+                    if(startupScript.matches("\\b(https?|ftp)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")) {
+                        items.setKey("startup-script-url");
+                        items.setValue(startupScript);
+                    } else {
+                        items.setKey("startup-script");
+                        File f = new File(startupScript);
+                        if(f.exists()) {
+                            items.setValue(FileUtils.readFileAsString(f));
+                        } else {
+                            items.setValue("file not found [" + startupScript + "]");
+                        }
+                    }
                     itemList.add(items);
                 }
                 if(sshKeys != null && !sshKeys.isEmpty()) {

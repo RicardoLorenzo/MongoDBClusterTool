@@ -73,22 +73,14 @@ public class PuppetConfiguration {
 
     public static String generateNodeManifest(String clusterName) {
         StringBuilder sb = new StringBuilder();
-        /**
-         * Apply mongodb-base puppet class to all MongoDB nodes (configs and shards)
-         */
         sb.append("node mongodb {\n  include mongodb-base\n}\n\n");
-        /**
-         * Apply mongodb-conf puppet class to shards
-         */
         sb.append("node /^");
         sb.append(clusterName);
-        sb.append("-conf-node\\d+$/ inherits mongodb {\n  include mongodb-conf\n}\n\n");
-        /**
-         * Apply mongodb-shard puppet class to shards
-         */
+        sb.append("-conf-node-\\d+$/ inherits mongodb {\n  include mongodb-conf\n}\n\n");
         sb.append("node /^");
         sb.append(clusterName);
-        sb.append("-shard-node\\d+$/ inherits mongodb {\n  include mongodb-shard\n}\n\n");
+        sb.append("-shard-node-\\d+$/ inherits mongodb {\n  include mongodb-shard\n}\n\n");
+        sb.append("import 'mongodb-base.pp'\nimport 'mongodb-conf.pp'\nimport 'mongodb-shard.pp'\n");
         return sb.toString();
     }
 
@@ -170,16 +162,19 @@ public class PuppetConfiguration {
     public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
         StringBuilder sb = new StringBuilder();
         sb.append("#!/bin/bash\n\n");
-        sb.append("echo \"Acquire::http::Proxy \\\"http://");
+        sb.append("export http_proxy=http://");
+        sb.append(serverName);
+        sb.append("\necho \"Acquire::http::Proxy \\\"http://");
         sb.append(serverName);
         sb.append("\\\";\n\" > /etc/apt/apt.conf.d/90proxy\n\n");
         sb.append("for i in $(seq 1 1 100); do\n");
-        sb.append("  wget http://");
+        sb.append("  wget -O /dev/null http://");
         sb.append(serverName);
-        sb.append(";\n  if [ \"$?\" -eq 0 ]; then\n");
-        sb.append("    break;\nfi\n  sleep 1;\ndone\n");
+        sb.append(" http://http.debian.net/debian/dists/wheezy/Release.gpg;\n  if [ \"$?\" -eq 0 ]; then\n");
+        sb.append("    break;\nfi\n  sleep 1;\ndone\nsleep 4\n");
         sb.append("if [ -z \"$(dpkg -l | grep puppet)\" ]; then\n");
-        sb.append("  apt-get update && apt-get install -y puppet\nfi\n\n");
+        sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
+        sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y puppet\nfi\n\n");
         sb.append("echo \"[main]\n");
         sb.append("logdir=/var/log/puppet\nvardir=/var/lib/puppet\nssldir=/var/lib/puppet/ssl\n");
         sb.append("rundir=/var/run/puppet\nfactpath=$vardir/lib/facter\ntemplatedir=$confdir/templates\n");
@@ -196,7 +191,7 @@ public class PuppetConfiguration {
         sb.append("# Start puppet on boot?\nSTART=yes\n\n");
         sb.append("# Startup options\nDAEMON_OPTS=\" > /etc/default/puppet\n\necho \"path /run\nallow ");
         sb.append(serverName);
-        sb.append(" > ");
+        sb.append("\" > ");
         sb.append(PUPPET_HOME_DIR);
         sb.append("/auth.conf\n\npuppetd --test --waitforcert 60 --server ");
         sb.append(serverName);
@@ -227,8 +222,9 @@ public class PuppetConfiguration {
         sb.append("    echo \"ProxyRequests On\nProxyPreserveHost On\n\n<Proxy *>\n  Order deny,allow\n");
         sb.append("  Deny from all\n  Allow from ");
         sb.append(networkRange);
-        sb.append("\n</Proxy>\" > /etc/apache2/sites-available/proxy\n");
+        sb.append("\n</Proxy>\" > /etc/apache2/conf.d/proxy\n");
         sb.append("  fi\n");
+        sb.append("  service apache2 restart\n");
         sb.append("fi\n");
 
         /**
