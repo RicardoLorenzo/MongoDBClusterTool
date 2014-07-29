@@ -37,6 +37,7 @@ import utils.gce.storage.GoogleCloudStorageClient;
 import utils.gce.storage.GoogleCloudStorageException;
 import utils.play.BugWorkaroundForm;
 import utils.puppet.PuppetConfiguration;
+import utils.puppet.PuppetConfigurationException;
 import utils.puppet.disk.PuppetDiskConfiguration;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
@@ -307,6 +308,10 @@ public class GoogleComputeEngineApplication extends Controller {
                         clusterForm.getDataDiskType(), clusterForm.getFileSystem(), clusterForm.getDataDiskSizeGb(),
                         clusterForm.getRootDiskSizeGb());
             } catch(GoogleComputeEngineException e) {
+                return ok(views.html.error.render(e.getMessage()));
+            } catch(GoogleCloudStorageException e) {
+                return ok(views.html.error.render(e.getMessage()));
+            } catch(PuppetConfigurationException e) {
                 return ok(views.html.error.render(e.getMessage()));
             }
             flash("success", "Cluster creation launched! Please check the running operations in the cluster status page.");

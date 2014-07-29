@@ -340,6 +340,15 @@ public class GoogleComputeEngineClient {
         }
     }
 
+    public Network getNetwork(String networkName) throws GoogleComputeEngineException {
+        try {
+            Compute.Networks.Get get = compute.networks().get(projectId, networkName);
+            return get.execute();
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException(e);
+        }
+    }
+
     public String createNetwork(String name, String description, String ip4Range, String ip4Gateway) throws GoogleComputeEngineException {
         Network net = new Network();
         net.setName(name);

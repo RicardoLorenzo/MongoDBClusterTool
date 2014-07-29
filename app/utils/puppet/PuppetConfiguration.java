@@ -28,9 +28,12 @@ public class PuppetConfiguration {
     public static final PuppetDiskConfiguration DISK_PER_PROCESS;
     public static final PuppetDiskConfiguration DISK_RAID0;
     public static final List<String> SUPPORTED_FILESYSTEMS;
-    public static final Integer PUPPET_MANIFEST = 1;
-    public static final Integer PUPPET_FILE = 2;
-    private static String PUPPET_HOME = "/etc/puppet";
+    public static final int PUPPET_MANIFEST = 1;
+    public static final int PUPPET_FILE = 2;
+    private static final String PUPPET_HOME_DIR = "/etc/puppet";
+    private static final String PUPPET_MANIFESTS_DIR = "manifests";
+    private static final String PUPPET_FILES_DIR = "files";
+    private static final String PUPPET_TEMPLATES_DIR = "templates";
 
     static {
         SUPPORTED_FILESYSTEMS = new ArrayList<>();
@@ -52,6 +55,118 @@ public class PuppetConfiguration {
         return SUPPORTED_FILESYSTEMS;
     }
 
+    public static String getPuppetHomeDirectory() {
+        return PUPPET_HOME_DIR;
+    }
+
+    public static String getPuppetManifestsDirectory() {
+        return PUPPET_HOME_DIR + "/" + PUPPET_MANIFESTS_DIR;
+    }
+
+    public static String getPuppetFilesDirectory() {
+        return PUPPET_HOME_DIR + "/" + PUPPET_FILES_DIR;
+    }
+
+    public static String getPuppetTemplatesDirectory() {
+        return PUPPET_HOME_DIR + "/" + PUPPET_TEMPLATES_DIR;
+    }
+
+    public static String generateNodeManifest(String clusterName) {
+        StringBuilder sb = new StringBuilder();
+        /**
+         * Apply mongodb-base puppet class to all MongoDB nodes (configs and shards)
+         */
+        sb.append("node mongodb {\n  include mongodb-base\n}\n\n");
+        /**
+         * Apply mongodb-conf puppet class to shards
+         */
+        sb.append("node /^");
+        sb.append(clusterName);
+        sb.append("-conf-node\\d+$/ inherits mongodb {\n  include mongodb-conf\n}\n\n");
+        /**
+         * Apply mongodb-shard puppet class to shards
+         */
+        sb.append("node /^");
+        sb.append(clusterName);
+        sb.append("-shard-node\\d+$/ inherits mongodb {\n  include mongodb-shard\n}\n\n");
+        return sb.toString();
+    }
+
+    public static String generateMongoConfClassManifest() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("class mongodb-conf {\n");
+        sb.append("  service { 'mongodb':\n    ensure => running,\n    enable => true,\n");
+        sb.append("    subscribe => File['/etc/mongodb.conf']\n  }\n\n");
+        sb.append("  file { '/etc/mongodb.conf':\n    notify => Service['mongodb'],\n    owner => 'root',\n");
+        sb.append("    group => 'root',\n    mode => 644,\n    source => 'puppet:///files/mongodb-configsrv.conf',\n");
+        sb.append("    require => Exec['mongodb-10gen']\n  }\n");
+        sb.append("}\n\n");
+        sb.toString();
+        return sb.toString();
+    }
+
+    public static String generateMongoShardClassManifest() {
+        /**
+         * TODO the approach is based on microshards init script
+         */
+        StringBuilder sb = new StringBuilder();
+        sb.append("class mongodb-shard {\n");
+        sb.append("  file { '/etc/init.d/mongodb-microshards':\n    owner => 'root',\n    group => 'root',\n");
+        sb.append("    mode => 755,\n    source => 'puppet:///files/mongodb-microshards',\n  }\n\n");
+        sb.append("  file { '/etc/default/grub':\n    notify  => Exec['update-grub'],\n    owner => 'root',\n");
+        sb.append("    group => 'root',\n    mode => 644,\n    source => 'puppet:///files/grub',\n");
+        sb.append("    require => Exec['mongodb-10gen']\n  }\n\n");
+        sb.append("  service { 'mongodb':\n    ensure => stopped,\n    enable => false,\n");
+        sb.append("    require => File['/etc/init.d/mongodb-microshards']\n  }\n\n");
+        sb.append("#\n#  WARNING: This is a workaround to enable cgroups kernel module. This workaround imply");
+        sb.append("#  a node restart, but happen only once.\n");
+        sb.append("  exec { 'test-mongodb-microshards':\n    command => '/usr/bin/test 0',\n");
+        sb.append("    onlyif => \\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups |");
+        sb.append("grep memory | awk '{ print $4 }')\\\",\n");
+        sb.append("    require => [\n                 Package['cgroup-bin'],\n");
+        sb.append("                 Service['mongodb']\n               ]\n  }\n \n");
+        sb.append("  service { 'mongodb-microshards':\n    ensure => running,\n    enable => true,\n");
+        sb.append("    require => [\n                  File['/etc/init.d/mongodb-microshards'],\n");
+        sb.append("                  Exec['test-mongodb-microshards']\n               ]\n  }\n\n");
+        sb.append("  package { 'cgroup-bin':\n    ensure => present\n  }\n\n");
+        sb.append("  exec { 'update-grub':\n    notify  => Exec['reboot'],\n    command => '/usr/sbin/update-grub',\n");
+        sb.append("    subscribe => File['/etc/default/grub'],\n    refreshonly => true\n  }\n\n");
+        sb.append("  exec { 'reboot':\n    command => '/sbin/reboot',\n    subscribe => Exec['update-grub'],\n");
+        sb.append("    refreshonly => true\n  }\n");
+        sb.append("}\n\n");
+        return sb.toString();
+    }
+
+    public static String generateMongoBaseClassManifest() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("class mongodb-base {");
+        sb.append("  class { 'timezone':\n   timezone => 'UTC'\n  }\n\n");
+        sb.append("  package { 'ntp':\n    ensure => present\n  }\n\n");
+        sb.append("  service { 'ntp':\n    ensure => running,\n    enable => true\n  }\n\n");
+        sb.append("  file { '/etc/hosts':\n    owner => 'root',\n    group => 'root',\n");
+        sb.append("    mode => 644,\n    content => template('hosts/hosts.erb')\n  }\n\n");
+        sb.append("  group { 'mongodb':\n    ensure => present\n  }\n\n");
+        sb.append("  user { 'mongodb':\n    ensure => present,\n    gid => 'mongodb',\n");
+        sb.append("    shell => '/bin/bash',\n    require => Group['mongodb']\n  }\n\n");
+        sb.append("#\n#  WARNING: Is important to perform an apt-get update before try to install");
+        sb.append("#  any package.\n");
+        sb.append("  exec { 'apt-get update':\n    notify => Exec['mongodb-10gen'],\n");
+        sb.append("    command => '/usr/bin/apt-get update',\n    subscribe => Apt::Source['mongodb']\n  }\n\n");
+        sb.append("  apt::key { 'mongodb':\n    key => '7F0CEB10',\n    key_server => 'keyserver.ubuntu.com'\n  }\n\n");
+        sb.append("  apt::source { 'mongodb':\n    notify => Exec['apt-get update'],\n");
+        sb.append("    location => 'http://downloads-distro.mongodb.org/repo/debian-sysvinit',\n");
+        sb.append("    release => 'dist',\n    repos => '10gen',\n    key => '7F0CEB10',\n");
+        sb.append("    key_server => 'keyserver.ubuntu.com',\n    include_src => false,\n");
+        sb.append("    require => Apt::Key['mongodb']\n  }\n");
+        sb.append("#\n#  WARNING: Cannot use 'package' because of the 10gen repo, so it needs to trigger");
+        sb.append("#  an 'apt-get update' before.\n");
+        sb.append("  exec { 'mongodb-10gen':\n");
+        sb.append("    command => '/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools',\n");
+        sb.append("    subscribe => Exec['apt-get update'],\n    require => Exec['apt-get update']\n  }\n");
+        sb.append("}\n\n");
+        return sb.toString();
+    }
+
     public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
         StringBuilder sb = new StringBuilder();
         sb.append("#!/bin/bash\n\n");
@@ -66,42 +181,40 @@ public class PuppetConfiguration {
         sb.append("if [ -z \"$(dpkg -l | grep puppet)\" ]; then\n");
         sb.append("  apt-get update && apt-get install -y puppet\nfi\n\n");
         sb.append("echo \"[main]\n");
-        sb.append("logdir=/var/log/puppet\n");
-        sb.append("vardir=/var/lib/puppet\n");
-        sb.append("ssldir=/var/lib/puppet/ssl\n");
-        sb.append("rundir=/var/run/puppet\n");
-        sb.append("factpath=$vardir/lib/facter\n");
-        sb.append("templatedir=$confdir/templates\n");
-        sb.append("prerun_command=/etc/puppet/etckeeper-commit-pre\n");
-        sb.append("postrun_command=/etc/puppet/etckeeper-commit-post\n");
-        sb.append("server=mongodb-puppetmaster.c.peta-mongo.internal\n");
-        sb.append("listen=true\n\n");
-        sb.append("[master]\n");
-        sb.append("ssl_client_header = SSL_CLIENT_S_DN\n");
-        sb.append("ssl_client_verify_header = SSL_CLIENT_VERIFY\" > /etc/puppet/puppet.conf\n\n");
-        sb.append("echo \"# Defaults for puppet - sourced by /etc/init.d/puppet\n\n");
-        sb.append("# Start puppet on boot?\n");
-        sb.append("START=yes\n\n");
-        sb.append("# Startup options\n");
-        sb.append("DAEMON_OPTS=\" > /etc/default/puppet\n\n");
-        sb.append("echo \"path /run\n");
-        sb.append("allow ");
+        sb.append("logdir=/var/log/puppet\nvardir=/var/lib/puppet\nssldir=/var/lib/puppet/ssl\n");
+        sb.append("rundir=/var/run/puppet\nfactpath=$vardir/lib/facter\ntemplatedir=$confdir/templates\n");
+        sb.append("prerun_command=");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/etckeeper-commit-pre\npostrun_command=");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/etckeeper-commit-post\nserver=");
         sb.append(serverName);
-        sb.append(" > /etc/puppet/auth.conf\n\n");
-        sb.append("puppetd --test --waitforcert 60 --server ");
+        sb.append("\nlisten=true\n\n[master]\n");
+        sb.append("ssl_client_header = SSL_CLIENT_S_DN\nssl_client_verify_header = SSL_CLIENT_VERIFY\" > ");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/puppet.conf\n\necho \"# Defaults for puppet - sourced by /etc/init.d/puppet\n\n");
+        sb.append("# Start puppet on boot?\nSTART=yes\n\n");
+        sb.append("# Startup options\nDAEMON_OPTS=\" > /etc/default/puppet\n\necho \"path /run\nallow ");
+        sb.append(serverName);
+        sb.append(" > ");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/auth.conf\n\npuppetd --test --waitforcert 60 --server ");
         sb.append(serverName);
         sb.append("\nservice puppet restart\n");
-
         return sb.toString();
     }
 
-    public static String getPuppetStartupScriptContent(String serverName, String networkRange) throws PuppetConfigurationException {
+    public static String getPuppetStartupScriptContent(String clusterName, String networkRange) throws PuppetConfigurationException {
         if(networkRange == null || networkRange.isEmpty()) {
             throw new IllegalArgumentException("incorrect network range");
         }
 
+        //IpNetworkCalculator ipcalc = new IpNetworkCalculator();
+
         StringBuilder sb = new StringBuilder();
         sb.append("#!/bin/bash\n\n");
+        sb.append("# WARNING: Update repositories before start\n");
+        sb.append("apt-get update\n");
 
         /**
          * Apache proxy connfiguration
@@ -114,7 +227,7 @@ public class PuppetConfiguration {
         sb.append("    echo \"ProxyRequests On\nProxyPreserveHost On\n\n<Proxy *>\n  Order deny,allow\n");
         sb.append("  Deny from all\n  Allow from ");
         sb.append(networkRange);
-        sb.append("\n</Proxy>\" > /etc/apache2/sites-available/proxy");
+        sb.append("\n</Proxy>\" > /etc/apache2/sites-available/proxy\n");
         sb.append("  fi\n");
         sb.append("fi\n");
 
@@ -127,22 +240,64 @@ public class PuppetConfiguration {
         sb.append("  wget -O /tmp/puppet-timezone.zip https://github.com/saz/puppet-timezone/archive/master.zip\n");
         sb.append("  cd /tmp && unzip puppet-timezone.zip\n  cd puppet-timezone-master && puppet module build .\n");
         sb.append("  puppet module install pkg/saz-timezone-*.tar.gz\n  puppet module install puppetlabs-apt\n");
-        sb.append("  mkdir -p /etc/puppet/templates/hosts\n  cat /etc/hosts > /etc/puppet/templates/hosts.erb\n");
-        sb.append("  echo \"<%= ipaddress %> <%= fqdn %> <%= hostname %>\" >> /etc/puppet/templates/hosts/hosts.erb\n");
-        sb.append("  echo \"[files]\n  path /etc/puppet/files\n  allow *\n\n[plugins]\n\n\"");
-        sb.append("> /etc/puppet/fileserver.conf\n");
-        sb.append("  echo \"autosign = true\" >> /etc/puppet/puppet.conf\n");
+        sb.append("  mkdir -p ");
+        sb.append(getPuppetTemplatesDirectory());
+        sb.append("/hosts\n  cat /etc/hosts > ");
+        sb.append(getPuppetTemplatesDirectory());
+        sb.append("/hosts/hosts.erb\n");
+        sb.append("  echo \"<%= ipaddress %> <%= fqdn %> <%= hostname %>\" >> ");
+        sb.append(getPuppetTemplatesDirectory());
+        sb.append("/hosts/hosts.erb\n");
+        sb.append("  echo \"[files]\n  path ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("\n  allow *\n\n[plugins]\n\n\" > ");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/fileserver.conf\n");
+        sb.append("  echo \"autosign = true\" >> ");
+        sb.append(PUPPET_HOME_DIR);
+        sb.append("/puppet.conf\n");
         /**
-         * TODO Puppet main.pp configuration into /etc/puppet/manifests/site.pp
+         * Generate puppet manifest files
          */
-        sb.append("  if ! [ -e /etc/puppet/files ]; then\n    mkdir -p /etc/puppet/files\n  fi\n");
+        sb.append("  echo \"");
+        sb.append(generateNodeManifest(clusterName));
+        sb.append("\" > ");
+        sb.append(getPuppetManifestsDirectory());
+        sb.append("/site.pp\n");
+        sb.append("  echo \"");
+        sb.append(generateMongoBaseClassManifest());
+        sb.append("\" > ");
+        sb.append(getPuppetManifestsDirectory());
+        sb.append("/mongodb-base.pp\n");
+        sb.append("  echo \"");
+        sb.append(generateMongoShardClassManifest());
+        sb.append("\" > ");
+        sb.append(getPuppetManifestsDirectory());
+        sb.append("/mongodb-shard.pp\n");
+        sb.append("  echo \"");
+        sb.append(generateMongoConfClassManifest());
+        sb.append("\" > ");
+        sb.append(getPuppetManifestsDirectory());
+        sb.append("/mongodb-conf.pp\n");
+
+        sb.append("  if ! [ -e ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append(" ]; then\n    mkdir -p ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("\n  fi\n");
         sb.append("  echo \"GRUB_DEFAULT=0\nGRUB_TIMEOUT=0\nGRUB_DISTRIBUTOR=\\\"Debian\\\"\n");
         sb.append("GRUB_CMDLINE_LINUX_DEFAULT=\\\"quiet\\\"\n");
         sb.append("GRUB_CMDLINE_LINUX=\\\"console=ttyS0,38400n8 cgroup_enable=memory swapaccount=1\\\"\n");
-        sb.append("\" > /etc/puppet/files/grub\n");
+        sb.append("\" > ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("/grub\n");
         sb.append("  echo \"configsvr=true\ndbpath=/var/lib/mongodb\nlogpath=/var/log/mongodb/mongodb.log\n");
-        sb.append("logappend=true\n\" > /etc/puppet/files/mongodb-configsrv.conf");
-        sb.append("  wget -O /etc/puppet/files/mongodb-microshards http://storage.googleapis.com/");
+        sb.append("logappend=true\n\" > ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("/mongodb-configsrv.conf");
+        sb.append("  wget -O ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("/mongodb-microshards http://storage.googleapis.com/");
         sb.append("peta-mongo/autostart/mongodb-microshards\n\n  service puppetmaster restart\nfi");
 
         return sb.toString();

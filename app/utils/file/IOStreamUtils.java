@@ -153,11 +153,55 @@ public class IOStreamUtils {
         }
     }
 
+    private static int indexOf(byte c, byte[] array, int start) throws Exception {
+        for(int i = start; i < array.length; i++) {
+            if(new Byte(array[i]).intValue() == (int) c) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static final byte[] read(final InputStream is, final int length) throws IOException {
+        byte[] data = new byte[length];
+        is.read(data, 0, data.length);
+        return data;
+    }
+
+    public static final byte[] readUntilDataIsFound(final InputStream is, final byte[] data) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        while(true) {
+            int offset = 0;
+            int c = is.read();
+            out.write(c);
+            for(; c == data[offset]; offset++) {
+                if(offset == (data.length - 1)) {
+                    return out.toByteArray();
+                }
+                c = is.read();
+            }
+        }
+    }
+
+    public static final void write(final InputStream is, final OutputStream os, long length) throws IOException {
+        long offset = 0;
+        for(; offset < length; offset++) {
+            os.write(is.read());
+        }
+        os.flush();
+    }
+
     public static final void write(final InputStream is, final OutputStream os) throws IOException {
         byte[] buffer = new byte[2048];
-        for(int lenght = is.read(buffer); lenght > 0; lenght = is.read(buffer)) {
-            os.write(buffer, 0, lenght);
+        for(int rlenght = is.read(buffer); rlenght > 0; rlenght = is.read(buffer)) {
+            os.write(buffer, 0, rlenght);
         }
+        os.flush();
+    }
+
+    public static final void write(byte[] data, final OutputStream os) throws IOException {
+        os.write(data, 0, data.length);
+        os.flush();
     }
 
     public static final void write(final String content, final OutputStream os) throws IOException {

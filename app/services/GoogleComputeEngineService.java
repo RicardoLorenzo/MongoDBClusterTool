@@ -33,6 +33,8 @@ import play.libs.Json;
 import utils.gce.GoogleComputeEngineClient;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.OperationsCache;
+import utils.gce.storage.GoogleCloudStorageException;
+import utils.puppet.PuppetConfigurationException;
 import utils.security.SSHKey;
 import utils.security.SSHKeyFactory;
 import utils.security.SSHKeyStore;
@@ -259,13 +261,17 @@ public class GoogleComputeEngineService {
         return null;
     }
 
+    public String getNetworkRange(String networkName) throws GoogleComputeEngineException{
+        Network n = client.getNetwork(networkName);
+        return n.getIPv4Range();
+    }
+
     public void createCluster(String clusterName, Integer shards, Integer processes, Integer disksPerShard,
                               String machineType, List<String> network, String sourceImage, String diskType,
                               String diskRaid, String dataFileSystem, Integer dataDiskSizeGb,
-                              Integer rootDiskSizeGb) throws GoogleComputeEngineException {
+                              Integer rootDiskSizeGb) throws GoogleComputeEngineException, GoogleCloudStorageException, PuppetConfigurationException {
         List<String> tags;
         SSHKey sshKey = SSHKeyFactory.generateKey();
-        File startupScript = configurationService.getNodeStartupScript();
         StringBuilder machinePrefix = new StringBuilder();
         machinePrefix.append("https://www.googleapis.com/compute/v1/projects/");
         machinePrefix.append(client.getProjectId());
@@ -280,8 +286,11 @@ public class GoogleComputeEngineService {
         if(clusterName == null) {
             throw new GoogleComputeEngineException("cluster name not defined");
         }
-        configurationService.setClusterName(clusterName);
+        if(network == null || network.isEmpty()) {
+            throw new GoogleComputeEngineException("network not defined");
+        }
 
+        File startupScript = configurationService.getNodeStartupScript(clusterName);
         /**
          * Verify the machine type to get the proper Link
          */
@@ -348,12 +357,17 @@ public class GoogleComputeEngineService {
         instance_name.append(ConfigurationService.NODE_NAME_PUPPET);
         tags = Arrays.asList(ConfigurationService.NODE_TAG_PUPPET, clusterName);
         if(!client.instanceExists(instance_name.toString())) {
+            String networkName = network.get(0);
+            if(networkName.contains("/")) {
+                networkName = networkName.substring(networkName.lastIndexOf("/") + 1);
+            }
             client.createInstance(instance_name.toString(), machinePrefix.toString().concat("n1-standard-1"), network,
                     rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(SSHClient.DEFAULT_USER)),
-                    ConfigurationService.PUPPET_AUTOSTART_SCRIPT, true);
+                    ConfigurationService.generatePuppetStartupScript(clusterName, networkName), true);
         } else {
             log.info("instance [" + instance_name.toString() + "] already exists, not created");
         }
+        configurationService.setClusterName(clusterName);
 
         /**
          * Create the config nodes
@@ -441,5 +455,7 @@ public class GoogleComputeEngineService {
         for(Instance i : client.getInstances(Arrays.asList(ConfigurationService.NODE_TAG_PUPPET))) {
             client.deleteInstance(i.getName());
         }
+
+        configurationService.setClusterName(null);
     }
 }

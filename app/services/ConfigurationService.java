@@ -24,12 +24,17 @@ import utils.file.FileLockException;
 import utils.file.FileUtils;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.storage.GoogleCloudStorageClient;
+import utils.gce.storage.GoogleCloudStorageException;
 import utils.puppet.PuppetConfiguration;
 import utils.puppet.PuppetConfigurationException;
+import utils.ssh.FilePermissions;
+import utils.ssh.SSHClient;
+import utils.ssh.SSHException;
 
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Created by ricardolorenzo on 27/07/2014.
@@ -43,7 +48,7 @@ public class ConfigurationService {
     public static final String NODE_TAG_PUPPET = "puppet";
     public static final String NODE_TAG_CONF = "config";
     public static final String NODE_TAG_SHARD = "shard";
-    public static final String PUPPET_AUTOSTART_SCRIPT = "http://storage.googleapis.com/peta-mongo/autostart/mongodb_master_autostart.sh";
+    //public static final String PUPPET_AUTOSTART_SCRIPT = "mongodb_master_autostart.sh";
     private static GoogleAuthenticationService authService;
     private static GoogleComputeEngineService googleComputeService;
     private static GoogleCloudStorageClient googleStorageClient;
@@ -84,19 +89,28 @@ public class ConfigurationService {
         return new File(applicationDirectory + "/node-startup.sh");
     }
 
-    public static void setClusterName(String name) throws GoogleComputeEngineException {
-        File f = getClusterNameFile();
-        if(name == null) {
-            f.delete();
-        } else {
-            try {
-                FileUtils.writeFile(f, name);
-            } catch(IOException e) {
-                throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
-            } catch(FileLockException e) {
-                throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
-            }
+    private static String getPuppetServerName(String clusterName) throws GoogleComputeEngineException {
+        StringBuilder puppetServer = new StringBuilder();
+        puppetServer.append(clusterName);
+        puppetServer.append("-");
+        puppetServer.append(ConfigurationService.NODE_NAME_PUPPET);
+        puppetServer.append(".c.");
+        puppetServer.append(ConfigurationService.projectId);
+        puppetServer.append(".internal");
+        return puppetServer.toString();
+    }
+
+    public static String generatePuppetStartupScript(String clusterName, String networkName) throws PuppetConfigurationException, GoogleComputeEngineException, GoogleCloudStorageException {
+        checkGoogleAuthentication();
+        if(bucketId == null || bucketId.isEmpty()) {
+            throw new GoogleCloudStorageException("parameter 'google.bucketId' not specified in the configuration");
         }
+        StringBuilder scriptPath = new StringBuilder();
+        scriptPath.append("autostart/");
+        scriptPath.append(clusterName);
+        scriptPath.append("/puppetmaster_autostart.sh");
+        String puppetScriptContent = PuppetConfiguration.getPuppetStartupScriptContent(clusterName, googleComputeService.getNetworkRange(networkName));
+        return googleStorageClient.putFile(bucketId, scriptPath.toString(), "plain/text", puppetScriptContent.getBytes());
     }
 
     public static String getClusterName() throws GoogleComputeEngineException {
@@ -111,17 +125,10 @@ public class ConfigurationService {
         }
     }
 
-    public File getNodeStartupScript() throws GoogleComputeEngineException {
-        StringBuilder puppetServer = new StringBuilder();
-        puppetServer.append(ConfigurationService.getClusterName());
-        puppetServer.append("-");
-        puppetServer.append(ConfigurationService.NODE_NAME_PUPPET);
-        puppetServer.append(".c.");
-        puppetServer.append(ConfigurationService.projectId);
-        puppetServer.append(".internal");
+    public static File getNodeStartupScript(String clusterName) throws GoogleComputeEngineException {
         File f = getNodeStartupScriptFile();
         try {
-            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(puppetServer.toString()));
+            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(clusterName));
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
@@ -132,32 +139,81 @@ public class ConfigurationService {
         return f;
     }
 
-    public String writePuppetStartupScript() throws GoogleComputeEngineException {
-        checkGoogleAuthentication();
-        //googleStorageClient.putFile("p");
-        return null;
-    }
-
-    /*public uploadPuppetFile(Integer type, String name, byte[] data) throws PuppetConfigurationException {
-        String server = googleService.getClusterPublicAddress();
+    public static String getPuppetFile(final Integer type, String name) throws PuppetConfigurationException, GoogleComputeEngineException {
+        String serverName = googleComputeService.getClusterPublicAddress();
         try {
+            StringBuilder destinationPath = new StringBuilder();
+            SSHClient client = new SSHClient(serverName, 22);
             switch(type) {
-                case PuppetConfiguration.PUPPET_METADATA:
+                case PuppetConfiguration.PUPPET_MANIFEST:
+                    destinationPath.append(PuppetConfiguration.getPuppetManifestsDirectory());
                     break;
                 case PuppetConfiguration.PUPPET_FILE:
+                    destinationPath.append(PuppetConfiguration.getPuppetFilesDirectory());
                     break;
                 default:
                     throw new PuppetConfigurationException("incorrect puppet file type");
             }
-            SSHClient client = new SSHClient(server, 22);
+            destinationPath.append("/");
+            destinationPath.append(name);
             try {
-                client.sendFile();
+                for(Map.Entry<String, byte[]> e : client.getFiles(destinationPath.toString()).entrySet()) {
+                    return new String(e.getValue());
+                }
+                return null;
+            } catch(SSHException e) {
+                throw new GoogleComputeEngineException(e);
             } finally {
                 client.disconnect();
             }
         } catch(IOException e) {
-            e.printStackTrace();
+            throw new GoogleComputeEngineException(e);
         }
+    }
 
-    }*/
+    public static void uploadPuppetFile(final Integer type, String name, byte[] data) throws PuppetConfigurationException, GoogleComputeEngineException {
+        String serverName = googleComputeService.getClusterPublicAddress();
+        try {
+            StringBuilder destinationPath = new StringBuilder();
+            SSHClient client = new SSHClient(serverName, 22);
+            FilePermissions permissions = new FilePermissions(FilePermissions.READ, FilePermissions.READ,
+                    FilePermissions.READ);
+            switch(type) {
+                case PuppetConfiguration.PUPPET_MANIFEST:
+                    destinationPath.append(PuppetConfiguration.getPuppetManifestsDirectory());
+                    break;
+                case PuppetConfiguration.PUPPET_FILE:
+                    destinationPath.append(PuppetConfiguration.getPuppetFilesDirectory());
+                    break;
+                default:
+                    throw new PuppetConfigurationException("incorrect puppet file type");
+            }
+            destinationPath.append("/");
+            destinationPath.append(name);
+            try {
+                client.sendFile(data, destinationPath.toString(), permissions);
+            } catch(SSHException e) {
+                throw new GoogleComputeEngineException(e);
+            } finally {
+                client.disconnect();
+            }
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException(e);
+        }
+    }
+
+    public static void setClusterName(String name) throws GoogleComputeEngineException {
+        File f = getClusterNameFile();
+        if(name == null) {
+            f.delete();
+        } else {
+            try {
+                FileUtils.writeFile(f, name);
+            } catch(IOException e) {
+                throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
+            } catch(FileLockException e) {
+                throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
+            }
+        }
+    }
 }

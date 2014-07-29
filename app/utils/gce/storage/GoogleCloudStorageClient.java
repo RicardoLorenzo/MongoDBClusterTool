@@ -85,7 +85,7 @@ public class GoogleCloudStorageClient {
         }
     }
 
-    public void putFile(String bucketName, String fileName, String contentType, byte[] fileData) throws GoogleCloudStorageException {
+    public String putFile(String bucketName, String fileName, String contentType, byte[] fileData) throws GoogleCloudStorageException {
         try {
             ByteArrayInputStream in = new ByteArrayInputStream(fileData);
             InputStreamContent fileContent = new InputStreamContent(contentType, in);
@@ -108,7 +108,7 @@ public class GoogleCloudStorageClient {
             if(fileContent.getLength() > 0 && fileContent.getLength() <= (2 * 1000 * 1000)) {
                 insertObject.getMediaHttpUploader().setDirectUploadEnabled(true);
             }
-            insertObject.execute();
+            return insertObject.execute().getMediaLink();
         } catch(IOException e) {
             throw new GoogleCloudStorageException(e);
         }

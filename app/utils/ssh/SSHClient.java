@@ -19,11 +19,14 @@ package utils.ssh;
 import com.jcraft.jsch.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import utils.file.IOStreamUtils;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
 
 import java.io.*;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -80,18 +83,14 @@ public class SSHClient {
         }
     }
 
-    private boolean verifyResponse(InputStream in) throws IOException {
+    private int verifyResponse(InputStream in) throws IOException {
         /**
-         * 0 for success and >= 1 for error
+         * 0 for success and 1 or 2 for error
          */
         int b = in.read();
-        if(b == 0) {
-            return true;
+        if(b == 0 || b == -1) {
+            return b;
         }
-        if(b == -1) {
-            throw new IOException("unknown error establishing transfer file connection");
-        }
-
         if(b == 1 || b == 2) {
             StringBuilder sb = new StringBuilder();
             int c;
@@ -99,11 +98,11 @@ public class SSHClient {
                 c = in.read();
                 sb.append((char)c);
             } while(c != '\n');
-            if(b >= 1) {
+            if(b == 1 || b == 2) {
                 throw new IOException("transfer file connection returned an error reply");
             }
         }
-        return false;
+        return b;
     }
 
     public byte[] getOutput() {
@@ -112,6 +111,104 @@ public class SSHClient {
 
     public String getStringOutput() {
         return new String(this.output);
+    }
+
+    /**
+     * This method read the files from the server and load the content on memory.
+     *
+     * @param sourcePath
+     * @return
+     * @throws SSHException
+     */
+    public Map<String, byte[]> getFiles(String sourcePath) throws SSHException {
+        if(this.session == null || !this.session.isConnected()) {
+            throw new SSHException("not connected, please connect first");
+        }
+        Map<String, byte[]> files = new HashMap<>();
+        try {
+            Channel channel = null;
+            OutputStream out = null;
+            InputStream in = null;
+
+            try {
+                StringBuilder sb = new StringBuilder();
+                sb.append("scp -f ");
+                sb.append(sourcePath);
+                channel = this.session.openChannel("exec");
+                ChannelExec.class.cast(channel).setCommand(sb.toString());
+
+                out = channel.getOutputStream();
+                in = channel.getInputStream();
+                channel.connect();
+
+                while(true) {
+                    /**
+                     * Send '\0'
+                     */
+                    IOStreamUtils.write(new byte[] { 0 }, out);
+
+                    int c = verifyResponse(in);
+                    if(c != 'C') {
+                        break;
+                    }
+
+                    String fileName = null;
+                    long fileSize = 0L;
+                    /**
+                     * Read permissions (ex. '0644 ')
+                     */
+                    byte[] data = IOStreamUtils.read(in, 5);
+
+                    /**
+                     * Read file size
+                     */
+                    while(true) {
+                        data = IOStreamUtils.read(in, 1);
+                        if(data[0] == ' ') {
+                            break;
+                        }
+                        fileSize = fileSize * 10L + Long.valueOf(data[0] - '0');
+                    }
+
+                    /**
+                     * Read file name
+                     */
+                    data = IOStreamUtils.readUntilDataIsFound(in, new byte[] { (byte) 0x0a } );
+                    fileName = new String(data).trim();
+
+                    /**
+                     * Send '\0'
+                     */
+                    IOStreamUtils.write(new byte[] { 0 }, out);
+
+                    /**
+                     * Read file content
+                     */
+                    ByteArrayOutputStream fileContent = new ByteArrayOutputStream();
+                    IOStreamUtils.write(in, fileContent, fileSize);
+                    verifyResponse(in);
+
+                    files.put(fileName, fileContent.toByteArray());
+                }
+                return files;
+            } finally {
+                if(in != null) {
+                    in.close();
+                }
+                if(out != null) {
+                    out.close();
+                }
+                if(channel != null) {
+                    channel.disconnect();
+                }
+            }
+        } catch(IOException e) {
+            log.error("file send error: " + e.getMessage());
+            throw new SSHException(e);
+        } catch(JSchException e) {
+            log.error("file send error: " + e.getMessage());
+            throw new SSHException(e);
+        }
     }
 
     public int sendCommand(String... command) throws SSHException {
@@ -235,12 +332,9 @@ public class SSHClient {
                 /**
                  * Send file
                  */
-                byte[] buffer = new byte[1024];
                 ByteArrayInputStream sourceStream = new ByteArrayInputStream(data);
                 try {
-                    for(int length = sourceStream.read(buffer, 0, buffer.length); length > 0; length = sourceStream.read(buffer, 0, buffer.length)) {
-                        out.write(buffer, 0, length);
-                    }
+                    IOStreamUtils.write(sourceStream, out);
                 } finally {
                     sourceStream.close();
                 }
@@ -248,9 +342,7 @@ public class SSHClient {
                 /**
                  * Send the final '\0'
                  */
-                buffer[0] = 0;
-                out.write(buffer, 0, 1);
-                out.flush();
+                IOStreamUtils.write(new byte[]{0}, out);
                 verifyResponse(in);
             } finally {
                 if(in != null) {
