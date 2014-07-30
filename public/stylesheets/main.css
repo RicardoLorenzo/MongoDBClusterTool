@@ -177,13 +177,20 @@
 }
 
 .operations-container {
-   overflow: scroll;
+   overflow-y: scroll;
+   overflow-x: hidden;
    height: 300px;
    width: 100%;
 }
 
 .operations-progress {
-   width: 200px;
+   width: 150px;
+}
+
+td.spinner {
+    height: 200px;
+    vertical-align: middle;
+    text-align: center;
 }
 
 textarea.puppet {

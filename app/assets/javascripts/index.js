@@ -15,12 +15,13 @@ function getOperations() {
         var message = JSON.parse(event.data);
         switch(message.type) {
             case "operation":
+                removeOperationsSpinner();
                 addOperationToList(message);
                 break;
         }
     };
     ws.onclose = function() {
-        // Not implemented
+        removeOperationsSpinner();
     };
 
     setInterval(function() {
@@ -28,7 +29,8 @@ function getOperations() {
             var message = {
                 action: "retrieve"
             };
-            if((lastOperationDate != null) && (operations.hasChildNodes())) {
+            var spinner = document.getElementById('spinner');
+            if((lastOperationDate != null) && spinner == null) {
                 message.lastOperationDate = new Date(lastOperationDate).toISOString();
             }
             ws.send(JSON.stringify(message))
@@ -188,5 +190,14 @@ function graphInstancesData() {
                 //None;
           }
     });
+}
+
+function removeOperationsSpinner() {
+    var spinner = document.getElementById('spinner');
+    if(spinner) {
+        var spinner = document.getElementById("spinner");
+        spinner.outerHTML = "";
+        delete spinner;
+    }
 }
 

@@ -1,0 +1,75 @@
+@(testNodeCreationForm: Form[views.data.TestNodeCreationForm],
+machineTypes:Map[String, Boolean],
+images:Map[String, Boolean])
+
+@import form._
+
+@main(title = "MongoDB") {
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                YCSB test nodes creation wizard
+            </h4>
+        </div>
+        <div class="panel-body">
+            @if(flash.containsKey("success")) {
+            <div id="success-message" class="alert alert-success">
+                @flash.get("success")
+            </div>
+            <p></p>
+
+            <div class="center-block">
+                <a class="btn btn-primary" href="@routes.Application.index()">Accept</a>
+            </div>
+            } else {
+            @helper.form(routes.YCSBApplication.createTestNodesPost(), 'class -> "form-horizontal") {
+            <fieldset>
+                <!-- Node number -->
+                @text(testNodeCreationForm("testNodes"),
+                label = "Number of test nodes",
+                placeholder = "4",
+                help = "Please enter the number of test nodes")
+
+                <!-- Machine type -->
+                @select(testNodeCreationForm("machineType"),
+                "Choose the machine type",
+                machineTypes,
+                false,
+                "Select the machine type")
+
+                <!-- Image -->
+                @select(testNodeCreationForm("image"),
+                "Choose the OS image",
+                images,
+                false,
+                "Select the OS image")
+
+                <!-- Disk size -->
+                @text(testNodeCreationForm("rootDiskSizeGb"),
+                label = "OS disk size (GB)",
+                placeholder = "16",
+                help = "Please enter the OS disk size")
+
+                <div class="control-group">
+                    <div class="controls">
+                        <input id="submit" type="submit" value="Proceed" class="btn btn-primary">
+                        <button id="cancel" class="btn cancel"
+                                formaction="@routes.Application.index()" formmethod="get">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+            }
+            }
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+        </div>
+    </div>
+</div>
+}

@@ -4,6 +4,23 @@
 <script src='@routes.Assets.at("javascripts/index.js")'></script>
 <span id="gce-operations" data-ws-url="@request.host@routes.GoogleComputeEngineApplication.gceOperations()"></span>
 
+@if(url == "/") {
+<div class="hero-unit">
+    <h1>MongoDB Cluster Tool for Google Compute Engine</h1>
+    <br>
+
+    <p>This application can deploy a MongoDB shard cluster in Google Compute Engine using different disk and instance
+        strategies, including micro-sharding. You can run different YCSB load test against your cluster.
+        The application will show the GCE operations and the YCSB test results in a reactive way using WebSockets.</p>
+    <br>
+
+    <p>
+        <a href="@routes.GoogleComputeEngineApplication.createClusterWizard()" class="btn btn-primary btn-large">Create cluster</a>
+        <a href="#" class="btn btn-primary btn-large">Test it</a>
+    </p>
+</div>
+}
+
 @if(url == "/gce") {
 <div class="panel panel-primary">
     <div class="panel-heading">
@@ -24,7 +41,15 @@
                     <th>Progress</th>
                 </tr>
                 </thead>-->
-                <tbody id="operations"></tbody>
+                <tbody id="operations">
+                    <tr id="spinner">
+                        <td colspan="5" class="spinner">
+                            <p class="text-info">Loading recent operations, please wait ...</p>
+                            <br/>
+                            <img src='@routes.Assets.at("images/spinner.gif")'/>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </div>

@@ -461,4 +461,10 @@ public class GoogleComputeEngineService {
 
         configurationService.setClusterName(null);
     }
+
+    public void createNode(Integer shards, String machineType, String sourceImage, Integer rootDiskSizeGb) {
+        /**
+         * TODO Implement this method
+         */
+    }
 }

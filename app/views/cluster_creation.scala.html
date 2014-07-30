@@ -31,7 +31,7 @@ cgroups:Boolean)
             } else {
             @helper.form(routes.GoogleComputeEngineApplication.createClusterWizardPost(), 'class -> "form-horizontal") {
             <fieldset>
-                <!-- Shard nodes -->
+                <!-- Cluster name -->
                 @text(clusterCreationForm("clusterName"),
                 label = "Cluster name",
                 placeholder = "cluster name",
