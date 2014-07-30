@@ -174,10 +174,7 @@ public class ClusterCreationForm {
         if(clusterName == null || clusterName.isEmpty()) {
             errors.add(new ValidationError("clusterName", "You must specify a name"));
         }
-        /**
-         * TODO <1 is only for testing, valoue should be <= 1
-         */
-        if(shardNodes == null || shardNodes < 1) {
+        if(shardNodes == null || shardNodes < 2) {
             errors.add(new ValidationError("shardNodes", "Incorrect number of shards"));
         }
         if(processes == null || processes <= 0) {

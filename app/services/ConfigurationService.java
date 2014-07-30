@@ -45,12 +45,18 @@ import java.util.StringTokenizer;
 @Service(value = "conf-service")
 @Configurable
 public class ConfigurationService {
+    public static final String CLUSTER_USER = "mongodb@localhost";
+    public static final String YCSB_USER = "ycsb@localhost";
     public static final String NODE_NAME_PUPPET = "puppetmaster";
     public static final String NODE_NAME_CONF = "conf";
     public static final String NODE_NAME_SHARD = "shard";
+    public static final String NODE_NAME_YCSB = "ycsb";
+    public static final String NODE_NAME_YCSB_JUMP = "ycsb-jump";
     public static final String NODE_TAG_PUPPET = "puppet";
     public static final String NODE_TAG_CONF = "config";
     public static final String NODE_TAG_SHARD = "shard";
+    public static final String NODE_TAG_YCSB = "ycsb";
+    public static final String NODE_TAG_YCSB_JUMP = "ycsb-jump";
     //public static final String PUPPET_AUTOSTART_SCRIPT = "mongodb_master_autostart.sh";
     private static GoogleAuthenticationService authService;
     private static GoogleComputeEngineService googleComputeService;
@@ -163,7 +169,7 @@ public class ConfigurationService {
             destinationPath.append("/");
             destinationPath.append(name);
             try {
-                client.connect(SSHClient.DEFAULT_USER);
+                client.connect(CLUSTER_USER);
                 for(Map.Entry<String, byte[]> e : client.getFiles(destinationPath.toString()).entrySet()) {
                     return new String(e.getValue());
                 }
@@ -198,7 +204,7 @@ public class ConfigurationService {
                     throw new PuppetConfigurationException("incorrect puppet file type");
             }
             try {
-                client.connect(SSHClient.DEFAULT_USER);
+                client.connect(CLUSTER_USER);
                 if(client.sendCommand("ls", destinationPath.toString()) > 0) {
                     throw new GoogleComputeEngineException("cannot list the files for directory: " + destinationPath.toString());
                 }
@@ -241,9 +247,10 @@ public class ConfigurationService {
             destinationPath.append("/");
             destinationPath.append(fileName);
             try {
-                client.connect(SSHClient.DEFAULT_USER);
+                client.connect(CLUSTER_USER);
                 client.sendFile(file, temporaryFile.toString(), permissions);
-                client.sendCommand("sudo", "mv", temporaryFile.toString(), destinationPath.toString());
+                client.sendCommand("sudo", "mv", temporaryFile.toString(), destinationPath.toString(), "&&",
+                        "puppet", "kick", "--all");
             } catch(SSHException e) {
                 throw new GoogleComputeEngineException(e);
             } finally {
@@ -276,9 +283,9 @@ public class ConfigurationService {
             destinationPath.append("/");
             destinationPath.append(fileName);
             try {
-                client.connect(SSHClient.DEFAULT_USER);
+                client.connect(CLUSTER_USER);
                 System.out.println("Delete: " + destinationPath.toString());
-                client.sendCommand("sudo", "rm", "-f", destinationPath.toString());
+                client.sendCommand("sudo", "rm", "-f", destinationPath.toString(), "&&", "puppet", "kick", "--all");
             } catch(SSHException e) {
                 throw new GoogleComputeEngineException(e);
             } finally {

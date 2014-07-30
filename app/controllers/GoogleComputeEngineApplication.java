@@ -20,7 +20,6 @@ import actors.GoogleComputeEngineConnection;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.api.services.storage.model.StorageObject;
 import org.springframework.beans.factory.annotation.Qualifier;
 import play.data.Form;
 import play.libs.Akka;
@@ -29,11 +28,11 @@ import play.mvc.Controller;
 import play.mvc.Result;
 import play.mvc.WebSocket;
 import scala.Option;
+import services.ConfigurationService;
 import services.GoogleAuthenticationService;
 import services.GoogleComputeEngineService;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.auth.GoogleComputeEngineAuthImpl;
-import utils.gce.storage.GoogleCloudStorageClient;
 import utils.gce.storage.GoogleCloudStorageException;
 import utils.play.BugWorkaroundForm;
 import utils.puppet.PuppetConfiguration;
@@ -41,7 +40,6 @@ import utils.puppet.PuppetConfigurationException;
 import utils.puppet.disk.PuppetDiskConfiguration;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
-import utils.ssh.SSHClient;
 import views.data.ClusterCreationForm;
 import views.data.ClusterDeletionForm;
 
@@ -381,7 +379,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static Result getClusterPrivateKey() {
         try {
             SSHKeyStore store = new SSHKeyStore();
-            SSHKey key = store.getKey(SSHClient.DEFAULT_USER);
+            SSHKey key = store.getKey(ConfigurationService.CLUSTER_USER);
             if(key == null) {
                 return ok(views.html.error.render("no cluster key found"));
             }
@@ -389,29 +387,6 @@ public class GoogleComputeEngineApplication extends Controller {
         } catch(ClassNotFoundException e) {
             return ok(views.html.error.render(e.getMessage()));
         } catch(IOException e) {
-            return ok(views.html.error.render(e.getMessage()));
-        }
-    }
-
-    public static Result sshTest() {
-        try {
-            GoogleCloudStorageClient client = new GoogleCloudStorageClient(googleAuth.getAuthentication());
-            StringBuilder sb = new StringBuilder();
-            for(StorageObject o : client.listFiles("peta-mongo")) {
-                sb.append(o.toPrettyString());
-            }
-
-            /**SSHClient client = new SSHClient("23.251.152.66", 22);
-            client.connect(SSHClient.DEFAULT_USER);
-            client.sendCommand("ls", "-l", "/");*/
-
-            return ok(sb.toString());
-        /*} catch(SSHException e) {
-            return ok(views.html.error.render(e.getMessage()));
-        */
-        } catch(IOException e) {
-            return ok(views.html.error.render(e.getMessage()));
-        } catch(GoogleCloudStorageException e) {
             return ok(views.html.error.render(e.getMessage()));
         }
     }

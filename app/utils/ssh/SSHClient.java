@@ -33,7 +33,6 @@ import java.util.Properties;
  */
 public class SSHClient {
     private static Logger log = LoggerFactory.getLogger(SSHClient.class);
-    public static final String DEFAULT_USER = "mongodb@localhost";
     private SSHKeyStore keyStore;
     private JSch client;
     private String host;
@@ -55,7 +54,7 @@ public class SSHClient {
 
     public void connect(String user) throws SSHException {
         if(user == null || user.isEmpty()) {
-            user = DEFAULT_USER;
+            throw new SSHException("ssh user not defined");
         }
         Session session;
         try {
