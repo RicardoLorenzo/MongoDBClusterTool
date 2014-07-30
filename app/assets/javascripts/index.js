@@ -35,7 +35,7 @@ function getOperations() {
             }
             ws.send(JSON.stringify(message))
             lastOperationDate = new Date().toISOString();
-        }, 2000);
+        }, 4000);
 }
 
 function addOperationToList(message) {
