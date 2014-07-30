@@ -11,7 +11,7 @@ function getOperations() {
         };
         ws.send(JSON.stringify(message));
     };
-    ws.onmessage = function (evt) {
+    ws.onmessage = function(event) {
         var message = JSON.parse(event.data);
         switch(message.type) {
             case "operation":
@@ -38,10 +38,6 @@ function getOperations() {
 
 function addOperationToList(message) {
     var operations = document.getElementById("operations");
-
-    /**
-     * TODO Check if the id exists, and update or remove the row
-     */
 
     var progress = document.createElement('div');
     var progressbar = document.createElement('div');

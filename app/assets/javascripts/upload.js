@@ -1,3 +1,28 @@
+function uploadProgress(event) {
+    if(event.lengthComputable) {
+        var progress = document.getElementById("progress");
+        if(!progress) {
+            var panel = document.getElementById("files-panel");
+            progress = document.createElement('div');
+            var progressbar = document.createElement('div');
+            progress.setAttribute('id', 'progress');
+            progress.setAttribute('class', 'progress');
+            progressbar.setAttribute('id', 'progressbar');
+            progressbar.setAttribute('class', 'bar');
+            progress.appendChild(progressbar);
+            panel.appendChild(progress);
+        }
+        progress.style.visibility = 'visible';
+        var percentComplete = event.loaded / event.total;
+        percentComplete = parseInt(percentComplete * 100);
+        var progressbar = document.getElementById('progressbar');
+        if(progressbar) {
+            progressbar.setAttribute('style', 'width: ' + percentComplete + '%');
+            progressbar.innerHTML = percentComplete + '%';
+        }
+    }
+}
+
 function uploadFile(url, file, deleteUrl) {
     var xhr = new XMLHttpRequest();
     var fd = new FormData();
@@ -32,37 +57,13 @@ function uploadFile(url, file, deleteUrl) {
             }
         }
     };
-    xhr.upload.addEventListener("progress", function(e) {
-        if(e.lengthComputable) {
-            var progress = document.getElementById("progress");
-            if(!progress) {
-                var panel = document.getElementById("files-panel");
-                progress = document.createElement('div');
-                var progressbar = document.createElement('div');
-                progress.setAttribute('id', 'progress');
-                progress.setAttribute('class', 'progress');
-                progressbar.setAttribute('id', 'progressbar');
-                progressbar.setAttribute('class', 'bar');
-                progress.appendChild(progressbar);
-                panel.appendChild(progress);
-            }
-            progress.style.visibility = 'visible';
-            var percentComplete = e.loaded / e.total;
-            percentComplete = parseInt(percentComplete * 100);
-            var progressbar = document.getElementById('progressbar');
-            if(progressbar) {
-                progressbar.setAttribute('style', 'width: ' + percentComplete + '%');
-                progressbar.innerHTML = percentComplete + '%';
-            }
-            if(percentComplete === 100) {
-                // none
-            }
-        }
-    }, false);
-
-    xhr.upload.addEventListener("load", function(e) {
+    xhr.upload.addEventListener("progress", uploadProgress, false);
+    //xhr.upload.addEventListener("load", function(e) {
         // none
-    }, false);
+    //}, false);
+    //xhr.upload.addEventListener("error", function(e) {
+            // none
+    //}, false);
     fd.append("file", file, file.name);
     // multipart/form-data upload
     xhr.send(fd);
