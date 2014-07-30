@@ -35,7 +35,7 @@ Create you Google GCE configurationi in conf/google.conf.
   google.zoneName=us-central1-b
 ```
 
-You should get this info from your GCE console (`https://console.developers.google.com/project/<project>/apiui/credential`)
+You should get this info from your GCE console `https://console.developers.google.com/project/<project>/apiui/credential`.
 
 Finally you can run the application with the following command
 
@@ -47,5 +47,14 @@ Finally you can run the application with the following command
 Supported browsers
 ==================
 
+This application supports only the most advanced browsers.
+
 - Chrome
 - Firefox
+
+Known issues
+============
+
+The current version create a MongoDB sharded cluster without a replica set, because is intended to achieve maximum throughtput instead of building a reliable data store.
+
+
