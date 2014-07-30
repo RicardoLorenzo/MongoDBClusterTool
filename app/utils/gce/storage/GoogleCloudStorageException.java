@@ -20,6 +20,8 @@ package utils.gce.storage;
  * Created by ricardolorenzo on 18/07/2014.
  */
 public class GoogleCloudStorageException extends Exception {
+    private static final long serialVersionUID = 2836027625651562919L;
+
     public GoogleCloudStorageException(String message) {
         super(message);
     }

@@ -1,10 +1,12 @@
 @(clusterEditionForm: Form[views.data.ClusterEditionForm],
-fileNames:Map[String, Boolean])
+fileNames:Map[String, Boolean],
+fileList:List[String])
 
 @import form._
 
 @main(title = "MongoDB") {
-<script src='@routes.Assets.at("javascripts/index.js")'></script>
+<script src='@routes.Assets.at("javascripts/puppet.js")'></script>
+<script src='@routes.Assets.at("javascripts/upload.js")'></script>
 
 <div class="container">
     <div class="panel panel-primary">
@@ -20,7 +22,13 @@ fileNames:Map[String, Boolean])
                 @flash.get("success")
             </div>
             }
-            @helper.form(routes.ConfigurationApplication.updatePuppetConfiguration(), 'class -> "form-horizontal") {
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+
+            @helper.form(routes.ConfigurationApplication.updatePuppetConfigurationPost(), 'class -> "form-horizontal") {
             <fieldset>
                 <!-- Puppet files -->
                 @selectWithSpinner(clusterEditionForm("fileName"),
@@ -31,12 +39,11 @@ fileNames:Map[String, Boolean])
 
                 <textarea id="fileContent" name="fileContent" class="puppet" rows="20"></textarea>
 
-
                 <p>&nbsp;</p>
 
                 <div class="control-group">
                     <div class="controls">
-                        <input id="submit" type="submit" value="Save file" class="btn btn-primary">
+                        <input id="submit" type="submit" value="Save" class="btn btn-primary"/>
                         <button id="cancel" class="btn cancel"
                                 formaction="@routes.GoogleComputeEngineApplication.gceIndex(None)" formmethod="get">
                             Cancel
@@ -45,21 +52,62 @@ fileNames:Map[String, Boolean])
                 </div>
             </fieldset>
             }
-            @if(flash.containsKey("error")) {
-            <div id="error-message" class="alert alert-error">
-                @flash.get("error")
-            </div>
-            }
         </div>
     </div>
+
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                MongoDB puppet files editor
+            </h4>
+        </div>
+        <div id="files-panel" class="panel-body">
+            <div class="row-fluid">
+                <div class="span8">
+                    <table class="table table-striped">
+                        <!--<thead>
+                        <tr>
+                            <th>Operation</th>
+                            <th>Start date</th>
+                            <th>Status</th>
+                            <th>User</th>
+                            <th>Progress</th>
+                        </tr>
+                        </thead>-->
+                        <tbody id="files">
+                        @for(file <- fileList) {
+                        <tr>
+                            <td>@file</td>
+                            <td>
+                                <a href="@routes.ConfigurationApplication.deletePuppetFile(fileName = Some(file))">
+                                    <i class="icon-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="span4">
+                    <div id="droparea" class="droparea">
+                        <p class="muted text-center">Drag & drop files here to upload</p>
+                    </div>
+                    <!-- <input id="fileselect" class="droparea" type="file" name="files" multiple/> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
     window.onload = function() {
-        var fileName = document.getElementById('fileName');
-        fileName.onchange = function() {
-            getPuppetManifest(fileName.value);
-        }
+        var serverString = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '');
+        var uploadUrl = serverString + '@routes.ConfigurationApplication.uploadPuppetFile()';
+        var deleteUrl = serverString + '@routes.ConfigurationApplication.deletePuppetFile(fileName = Some(""))';
+        activatePuppetFileSelect();
+        activateUploadDropArea(uploadUrl, deleteUrl);
     }
 </script>
 }

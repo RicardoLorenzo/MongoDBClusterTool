@@ -191,6 +191,54 @@ textarea.puppet {
     padding: 2px;
 }
 
+div.droparea#droparea {
+    margin-left: auto;
+    margin-right: auto;
+    width: 90%;
+    height: 60px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 60px;
+    border-radius: 10px;
+    border: 3px dotted #CCCCCC;
+    background: #F5F5F5;
+}
+
+.droparea input {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  opacity: 0;
+  -ms-filter: 'alpha(opacity=0)';
+  font-size: 200px;
+  direction: ltr;
+  cursor: pointer;
+}
+
+/* Fixes for IE < 8 */
+@media screen\9 {
+  .droparea-button input {
+    filter: alpha(opacity=0);
+    font-size: 100%;
+    height: 100%;
+  }
+}
+
+div.row#files {
+    margin-left: auto;
+    margin-right: auto;
+    width: 99%;
+}
+
+div#progress {
+    margin-left: auto;
+    margin-right: auto;
+    width: 80%;
+    visibility: hidden;
+
+}
+
 img.spinner {
     visibility: hidden;
 }

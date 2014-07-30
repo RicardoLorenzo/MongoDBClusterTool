@@ -20,6 +20,8 @@ package utils.gce;
  * Created by ricardolorenzo on 18/07/2014.
  */
 public class GoogleComputeEngineException extends Exception {
+    private static final long serialVersionUID = 5597191585977532802L;
+
     public GoogleComputeEngineException(String message) {
         super(message);
     }

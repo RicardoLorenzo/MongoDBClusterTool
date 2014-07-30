@@ -1,0 +1,57 @@
+@(fileDeletionForm: Form[views.data.FileDeletionForm],
+fileName:String,
+delete:String)
+
+@import form._
+
+@main(title = "MongoDB") {
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                MongoDB configuration file deletion
+            </h4>
+        </div>
+        <div class="panel-body">
+            @if(flash.containsKey("success")) {
+            <div id="success-message" class="alert alert-success">
+                @flash.get("success")
+            </div>
+            <p></p>
+
+            <div class="center-block">
+                <a class="btn btn-primary" href="@routes.ConfigurationApplication.updatePuppetConfiguration()">Accept</a>
+            </div>
+            } else {
+            <p>The file <strong>@fileName</strong> will be completely removed and cannot be restored again. Do you want to proceed?</p>
+
+            @helper.form(routes.ConfigurationApplication.deletePuppetFilePost(), 'class -> "form-horizontal") {
+            <fieldset>
+                <!-- FileName -->
+                <input type="hidden" name='@fileDeletionForm("fileName").name' id='@fileDeletionForm("fileName").id' value="@fileName" />
+
+                <!-- Delete -->
+                @hidden(fileDeletionForm("delete"))
+
+                <div class="control-group">
+                    <div class="controls">
+                        <input id="submit" type="submit" value="Proceed" class="btn btn-primary">
+                        <button id="cancel" class="btn cancel"
+                                formaction="@routes.ConfigurationApplication.updatePuppetConfiguration()" formmethod="get">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+            }
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+            }
+        </div>
+    </div>
+</div>
+}

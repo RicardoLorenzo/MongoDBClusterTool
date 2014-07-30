@@ -24,7 +24,6 @@ import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
 
 import java.io.*;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -271,7 +270,7 @@ public class SSHClient {
         }
     }
 
-    public void sendFile(byte[] data, String destinationPath, FilePermissions permissions)
+    public void sendFile(File file, String destinationPath, FilePermissions permissions)
             throws SSHException {
         if(this.session == null || !this.session.isConnected()) {
             throw new SSHException("not connected, please connect first");
@@ -296,20 +295,22 @@ public class SSHClient {
                 channel.connect();
                 verifyResponse(in);
 
+
                 /**
                  * Send modified and access time
                  */
+                /*
                 sb = new StringBuilder();
-                Date time = new Date();
                 sb.append("T ");
-                sb.append(time.getTime() / 1000);
+                sb.append(file.lastModified() / 1000);
                 sb.append(" 0");
                 sb.append(" ");
-                sb.append(time.getTime() / 1000);
+                sb.append(file.lastModified() / 1000);
                 sb.append(" 0\n");
                 out.write(sb.toString().getBytes());
                 out.flush();
                 verifyResponse(in);
+                */
 
                 sb = new StringBuilder();
                 sb.append("C0");
@@ -317,10 +318,10 @@ public class SSHClient {
                 sb.append(permissions.getGroupPermission());
                 sb.append(permissions.getAllPermission());
                 sb.append(" ");
-                sb.append(data.length);
+                sb.append(file.length());
                 sb.append(" ");
                 if(destinationPath.contains("/")) {
-                    sb.append(destinationPath.substring(destinationPath.indexOf("/") + 1));
+                    sb.append(destinationPath.substring(destinationPath.lastIndexOf("/") + 1));
                 } else {
                     sb.append(destinationPath);
                 }
@@ -332,7 +333,7 @@ public class SSHClient {
                 /**
                  * Send file
                  */
-                ByteArrayInputStream sourceStream = new ByteArrayInputStream(data);
+                FileInputStream sourceStream = new FileInputStream(file);
                 try {
                     IOStreamUtils.write(sourceStream, out);
                 } finally {

@@ -251,11 +251,13 @@ public class GoogleComputeEngineService {
         instance_name.append("-");
         instance_name.append(ConfigurationService.NODE_NAME_PUPPET);
         Instance instance = client.getInstance(instance_name.toString());
-        for(NetworkInterface i : instance.getNetworkInterfaces()) {
-            List<AccessConfig> accessConfigList = i.getAccessConfigs();
-            if(accessConfigList != null) {
-                for(AccessConfig c : accessConfigList) {
-                    return c.getNatIP();
+        if(instance != null) {
+            for(NetworkInterface i : instance.getNetworkInterfaces()) {
+                List<AccessConfig> accessConfigList = i.getAccessConfigs();
+                if(accessConfigList != null) {
+                    for(AccessConfig c : accessConfigList) {
+                        return c.getNatIP();
+                    }
                 }
             }
         }

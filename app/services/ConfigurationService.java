@@ -34,7 +34,10 @@ import utils.ssh.SSHException;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 /**
  * Created by ricardolorenzo on 27/07/2014.
@@ -142,6 +145,9 @@ public class ConfigurationService {
     public static String getPuppetFile(final Integer type, String name) throws PuppetConfigurationException, GoogleComputeEngineException {
         String serverName = googleComputeService.getClusterPublicAddress();
         try {
+            if(serverName == null || serverName.isEmpty()) {
+                return "";
+            }
             StringBuilder destinationPath = new StringBuilder();
             SSHClient client = new SSHClient(serverName, 22);
             switch(type) {
@@ -172,9 +178,52 @@ public class ConfigurationService {
         }
     }
 
-    public static void uploadPuppetFile(final Integer type, String name, byte[] data) throws PuppetConfigurationException, GoogleComputeEngineException {
+    public static List<String> listPuppetFiles(final Integer type) throws PuppetConfigurationException, GoogleComputeEngineException {
+        String serverName = googleComputeService.getClusterPublicAddress();
+        List<String> files = new ArrayList<String>();
+        try {
+            if(serverName == null || serverName.isEmpty()) {
+                return files;
+            }
+            StringBuilder destinationPath = new StringBuilder();
+            SSHClient client = new SSHClient(serverName, 22);
+            switch(type) {
+                case PuppetConfiguration.PUPPET_MANIFEST:
+                    destinationPath.append(PuppetConfiguration.getPuppetManifestsDirectory());
+                    break;
+                case PuppetConfiguration.PUPPET_FILE:
+                    destinationPath.append(PuppetConfiguration.getPuppetFilesDirectory());
+                    break;
+                default:
+                    throw new PuppetConfigurationException("incorrect puppet file type");
+            }
+            try {
+                client.connect(SSHClient.DEFAULT_USER);
+                if(client.sendCommand("ls", destinationPath.toString()) > 0) {
+                    throw new GoogleComputeEngineException("cannot list the files for directory: " + destinationPath.toString());
+                }
+                StringTokenizer st = new StringTokenizer(client.getStringOutput());
+                while(st.hasMoreTokens()) {
+                    files.add(st.nextToken());
+                }
+                return files;
+            } catch(SSHException e) {
+                throw new GoogleComputeEngineException(e);
+            } finally {
+                client.disconnect();
+            }
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException(e);
+        }
+    }
+
+    public static void uploadPuppetFile(final Integer type, String fileName, File file)
+            throws PuppetConfigurationException, GoogleComputeEngineException {
         String serverName = googleComputeService.getClusterPublicAddress();
         try {
+            StringBuilder temporaryFile = new StringBuilder();
+            temporaryFile.append("/tmp/");
+            temporaryFile.append(fileName);
             StringBuilder destinationPath = new StringBuilder();
             SSHClient client = new SSHClient(serverName, 22);
             FilePermissions permissions = new FilePermissions(FilePermissions.READ, FilePermissions.READ,
@@ -190,10 +239,46 @@ public class ConfigurationService {
                     throw new PuppetConfigurationException("incorrect puppet file type");
             }
             destinationPath.append("/");
-            destinationPath.append(name);
+            destinationPath.append(fileName);
             try {
                 client.connect(SSHClient.DEFAULT_USER);
-                client.sendFile(data, destinationPath.toString(), permissions);
+                client.sendFile(file, temporaryFile.toString(), permissions);
+                client.sendCommand("sudo", "mv", temporaryFile.toString(), destinationPath.toString());
+            } catch(SSHException e) {
+                throw new GoogleComputeEngineException(e);
+            } finally {
+                client.disconnect();
+            }
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException(e);
+        }
+    }
+
+    public static void deletePuppetFile(final Integer type, String fileName)
+            throws PuppetConfigurationException, GoogleComputeEngineException {
+        String serverName = googleComputeService.getClusterPublicAddress();
+        if(fileName == null || fileName.isEmpty()) {
+            throw new PuppetConfigurationException("file to be deleted is not defined");
+        }
+        try {
+            StringBuilder destinationPath = new StringBuilder();
+            SSHClient client = new SSHClient(serverName, 22);
+            switch(type) {
+                case PuppetConfiguration.PUPPET_MANIFEST:
+                    destinationPath.append(PuppetConfiguration.getPuppetManifestsDirectory());
+                    break;
+                case PuppetConfiguration.PUPPET_FILE:
+                    destinationPath.append(PuppetConfiguration.getPuppetFilesDirectory());
+                    break;
+                default:
+                    throw new PuppetConfigurationException("incorrect puppet file type");
+            }
+            destinationPath.append("/");
+            destinationPath.append(fileName);
+            try {
+                client.connect(SSHClient.DEFAULT_USER);
+                System.out.println("Delete: " + destinationPath.toString());
+                client.sendCommand("sudo", "rm", "-f", destinationPath.toString());
             } catch(SSHException e) {
                 throw new GoogleComputeEngineException(e);
             } finally {
