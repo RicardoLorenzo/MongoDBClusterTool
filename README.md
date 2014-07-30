@@ -47,7 +47,7 @@ Finally you can run the application with the following command
 Supported browsers
 ==================
 
-This application supports only the most advanced browsers.
+This application supports modern browsers only.
 
 - Chrome
 - Firefox
