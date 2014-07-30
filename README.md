@@ -55,6 +55,6 @@ This application supports only the most advanced browsers.
 Known issues
 ============
 
-The current version create a MongoDB sharded cluster without a replica set, because is intended to achieve maximum throughtput instead of building a reliable data store.
+The current version creates a MongoDB sharded cluster without a replica set, because is intended to achieve maximum throughput instead of building a reliable data store.
 
 
