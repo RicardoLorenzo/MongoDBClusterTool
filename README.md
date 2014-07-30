@@ -35,7 +35,7 @@ Create you Google GCE configurationi in conf/google.conf.
   google.zoneName=us-central1-b
 ```
 
-You should get this info from your GCE console (https://console.developers.google.com/project/&lt;project&gt;/apiui/credential)
+You should get this info from your GCE console (`https://console.developers.google.com/project/<project>/apiui/credential`)
 
 Finally you can run the application with the following command
 
