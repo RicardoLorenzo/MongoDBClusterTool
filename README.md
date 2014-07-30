@@ -44,7 +44,8 @@ Finally you can run the application with the following command
   ./activator run
 ```
 
-Know issues
-===========
+Supported browsers
+==================
 
-The javascript web socket creator only works for Google Chrome, I'm not a JS expert, but I'll try to solve it soon.
+- Chrome
+- Firefox
