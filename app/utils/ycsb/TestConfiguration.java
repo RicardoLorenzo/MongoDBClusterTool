@@ -22,10 +22,9 @@ public class TestConfiguration {
         sb.append(serverName);
         sb.append("\\\";\n\" > /etc/apt/apt.conf.d/90proxy\n\n");
         sb.append("for i in $(seq 1 1 100); do\n");
-        sb.append("  wget -O /dev/null http://");
-        sb.append(serverName);
+        sb.append("  wget -O /dev/null");
         sb.append(" http://http.debian.net/debian/dists/wheezy/Release.gpg;\n  if [ \"$?\" -eq 0 ]; then\n");
-        sb.append("    break;\nfi\n  sleep 1;\ndone\nsleep 4\n");
+        sb.append("    break;\n  fi\n  sleep 1;\ndone\nsleep 4\n");
         sb.append("if [ -z \"$(dpkg -l | grep openjdk-7-jdk)\" ]; then\n");
         sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
         sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y openjdk-7-jdk\nfi\n\n");
@@ -43,17 +42,22 @@ public class TestConfiguration {
         /**
          * An assumption here, is the fact that the SSH user is created
          */
+        sb.append("for i in $(seq 1 1 100); do\n");
+        sb.append("  wget -O /dev/null http://");
+        sb.append(serverName);
+        sb.append("/YCSB.git/info/refs;\n  if [ \"$?\" -eq 0 ]; then\n");
+        sb.append("    break;\n  fi\n  sleep 1;\ndone\n");
         sb.append("cd /home/");
         sb.append(user);
         sb.append("\ngit clone http://");
         sb.append(serverName);
-        sb.append("/YCSB.git\n");
+        sb.append(":80/YCSB.git\n");
         sb.append("cd YCSB\nmvn package -Dmaven.test.skip=true\n");
         sb.append("chown ");
         sb.append(user);
         sb.append(":");
         sb.append(user);
-        sb.append(" ../YCSB -R\n");
+        sb.append(" . -R\n");
         return sb.toString();
     }
 

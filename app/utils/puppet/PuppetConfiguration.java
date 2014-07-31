@@ -168,8 +168,7 @@ public class PuppetConfiguration {
         sb.append(serverName);
         sb.append("\\\";\n\" > /etc/apt/apt.conf.d/90proxy\n\n");
         sb.append("for i in $(seq 1 1 100); do\n");
-        sb.append("  wget -O /dev/null http://");
-        sb.append(serverName);
+        sb.append("  wget -O /dev/null");
         sb.append(" http://http.debian.net/debian/dists/wheezy/Release.gpg;\n  if [ \"$?\" -eq 0 ]; then\n");
         sb.append("    break;\nfi\n  sleep 1;\ndone\nsleep 4\n");
         sb.append("if [ -z \"$(dpkg -l | grep puppet)\" ]; then\n");
