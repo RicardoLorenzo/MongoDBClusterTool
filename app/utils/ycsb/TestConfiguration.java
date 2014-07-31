@@ -11,7 +11,7 @@ public class TestConfiguration {
     public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
         String user = ConfigurationService.TEST_USER;
         if(user.contains("@")) {
-            user = user.substring(user.lastIndexOf("@") + 1);
+            user = user.substring(0, user.lastIndexOf("@"));
         }
 
         StringBuilder sb = new StringBuilder();
@@ -30,11 +30,13 @@ public class TestConfiguration {
         sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
         sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y openjdk-7-jdk\nfi\n\n");
 
-        sb.append("if [ -z \"$(dpkg -l | grep git)\" ]; then\n");
+        sb.append("PKG=$(dpkg -l | grep \" git \")\n");
+        sb.append("if [ -z \"$PKG\" ]; then\n");
         sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
         sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y git\nfi\n\n");
 
-        sb.append("if [ -z \"$(dpkg -l | grep maven)\" ]; then\n");
+        sb.append("PKG=$(dpkg -l | grep \" maven \")\n");
+        sb.append("if [ -z \"$PKG\" ]; then\n");
         sb.append("  apt-get update && apt-get --no-install-recommends install -o DPkg::options::=\"--force-confdef\"");
         sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y maven\nfi\n\n");
 

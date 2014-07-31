@@ -16,11 +16,11 @@
 
 import org.junit.Test;
 import play.test.Helpers;
+import services.ConfigurationService;
 import utils.ssh.SSHClient;
 import utils.ssh.SSHException;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * Created by ricardolorenzo on 27/07/2014.
@@ -32,19 +32,17 @@ public class SSHTest {
         Helpers.running(Helpers.fakeApplication(), () -> {
             try {
                 SSHClient client = new SSHClient("23.236.60.31", 22);
-                client.connect(SSHClient.DEFAULT_USER);
-                //client.sendCommand("ls", "-l", "/");
-                Map<String, byte[]> files = client.getFiles("/etc/hosts");
-                for(Map.Entry<String, byte[]> e: files.entrySet()) {
-                    System.out.println(e.getKey());
-                    System.out.println("====================================\n");
-                    System.out.println(new String(e.getValue()));
+                try {
+                    client.connect(ConfigurationService.TEST_USER);
+                    //client.sendCommand("ls", "-l", "/");
+                    System.out.println("===================================\n");
+                    System.out.println("ls -l /\n");
+                    System.out.println("===================================\n");
+                    client.sendCommand("ls", "-l", "/");
+                    System.out.println(client.getStringOutput());
+                } finally {
+                    client.disconnect();
                 }
-                System.out.println("===================================\n");
-                System.out.println("ls -l /\n");
-                client.sendCommand("ls", "-l", "/");
-                System.out.println("===================================\n");
-                System.out.println(client.getStringOutput());
                 assert client.getStringOutput() != null;
             } catch(SSHException e) {
                 e.printStackTrace();

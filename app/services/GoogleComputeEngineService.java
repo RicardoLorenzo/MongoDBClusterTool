@@ -594,7 +594,5 @@ public class GoogleComputeEngineService {
         for(Instance i : client.getInstances(Arrays.asList(ConfigurationService.NODE_TAG_TEST_JUMP, clusterName))) {
             client.deleteInstance(i.getName());
         }
-
-        configurationService.setClusterName(null);
     }
 }

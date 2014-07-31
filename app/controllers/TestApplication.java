@@ -132,7 +132,7 @@ public class TestApplication extends Controller {
                 try {
                     googleService.createTestNodes(nodeCreationForm.getTestNodes(), nodeCreationForm.getMachineType(),
                             nodeCreationForm.getImage(), nodeCreationForm.getRootDiskSizeGb());
-                    flash("success", "File successfully deleted.");
+                    flash("success", "Test nodes creation launched! Please check the running operations in the cluster status page.");
                     return ok(views.html.test_nodes_creation.render(
                             formData,
                             null,

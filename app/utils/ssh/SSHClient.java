@@ -24,6 +24,7 @@ import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
 
 import java.io.*;
+import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -95,7 +96,7 @@ public class SSHClient {
                 user = user.substring(0, user.indexOf("@"));
             }
             int assignedPort = this.session.setPortForwardingL(0, host, port);
-            session = this.client.getSession(user, host, assignedPort);
+            session = this.client.getSession(user, "127.0.0.1", assignedPort);
             Properties config = new java.util.Properties();
             config.put("StrictHostKeyChecking", "no");
             session.setConfig(config);
@@ -148,7 +149,10 @@ public class SSHClient {
     }
 
     public String getStringOutput() {
-        return new String(this.output);
+        if(this.output != null) {
+            return new String(this.output);
+        }
+        return null;
     }
 
     /**
@@ -272,7 +276,9 @@ public class SSHClient {
      * @throws SSHException
      */
     public int sendCommand(String... command) throws SSHException {
-        return sendCommand(this.session, this.output, command);
+        Map.Entry<Integer, byte[]> response = sendCommand(this.session, command);
+        this.output = response.getValue();
+        return response.getKey();
     }
 
     /**
@@ -284,10 +290,12 @@ public class SSHClient {
      */
     public int sendForwardCommand(String host, String... command) throws SSHException {
         Session session = this.forwardSessions.get(host);
-        return sendCommand(session, this.output, command);
+        Map.Entry<Integer, byte[]> response = sendCommand(session, command);
+        this.output = response.getValue();
+        return response.getKey();
     }
 
-    public static int sendCommand(Session session, byte[] output, String... command) throws SSHException {
+    public static Map.Entry<Integer, byte[]> sendCommand(Session session, String... command) throws SSHException {
         if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
@@ -325,8 +333,7 @@ public class SSHClient {
                         Thread.sleep(250);
                     } catch(InterruptedException e) {}
                 }
-                output = out.toByteArray();
-                return channel.getExitStatus();
+                return new AbstractMap.SimpleEntry<Integer, byte[]>(channel.getExitStatus(), out.toByteArray());
             } finally {
                 if(in != null) {
                     in.close();
