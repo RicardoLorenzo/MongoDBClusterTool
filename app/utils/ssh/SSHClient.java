@@ -40,6 +40,10 @@ public class SSHClient {
     private Integer port;
     private Session session;
     private Map<String, Session> forwardSessions;
+    private Channel pipedChannel;
+    private Map<String, Channel> forwardPipedChannels;
+    private BufferedReader pipedReader;
+    private Map<String, BufferedReader> forwardPipedReaders;
     private byte[] output;
 
     public SSHClient(String host, int port) throws IOException {
@@ -178,7 +182,7 @@ public class SSHClient {
         return getFiles(session, sourcePath);
     }
 
-    public static Map<String, byte[]> getFiles(Session session, String sourcePath) throws SSHException {
+    private static Map<String, byte[]> getFiles(Session session, String sourcePath) throws SSHException {
         if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
@@ -295,7 +299,7 @@ public class SSHClient {
         return response.getKey();
     }
 
-    public static Map.Entry<Integer, byte[]> sendCommand(Session session, String... command) throws SSHException {
+    private static Map.Entry<Integer, byte[]> sendCommand(Session session, String... command) throws SSHException {
         if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
@@ -356,6 +360,153 @@ public class SSHClient {
 
     /**
      *
+     * @return
+     * @throws SSHException
+     * @throws IOException
+     */
+    public String readPipedCommandOutputLine() throws SSHException, IOException {
+        if(this.pipedChannel != null && this.pipedChannel.isConnected() && this.pipedReader != null) {
+            return this.pipedReader.readLine();
+        }
+        return null;
+    }
+
+    /**
+     *
+     * @param host
+     * @return
+     * @throws SSHException
+     * @throws IOException
+     */
+    public String readForwardPipedCommandOutputLine(String host) throws SSHException, IOException {
+        Channel channel = this.forwardPipedChannels.get(host);
+        BufferedReader reader = this.forwardPipedReaders.get(host);
+        if(channel != null && channel.isConnected() && reader != null) {
+            return reader.readLine();
+        }
+        return null;
+    }
+
+    public boolean pipedCommandOutputAvailable() {
+        if(this.pipedChannel != null) {
+            if(this.pipedChannel.isConnected()) {
+                return true;
+            } else {
+                if(pipedReader != null) {
+                    try {
+                        if(this.pipedReader.ready()) {
+                            return true;
+                        }
+                    } catch(IOException e) {}
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean forwardPipedCommandOutputAvailable() {
+        Channel channel = this.forwardPipedChannels.get(host);
+        BufferedReader reader = this.forwardPipedReaders.get(host);
+        if(channel != null) {
+            if(channel.isConnected()) {
+                return true;
+            } else {
+                if(reader != null) {
+                    try {
+                        if(reader.ready()) {
+                            return true;
+                        }
+                    } catch(IOException e) {}
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     *
+     * @param command
+     * @throws SSHException
+     */
+    public void sendPipedCommand(String... command) throws SSHException {
+        this.pipedChannel = sendPipedCommand(this.session, command);
+        try {
+            this.pipedReader = new BufferedReader(new InputStreamReader(
+                    new BufferedInputStream(this.pipedChannel.getInputStream())));
+        } catch(IOException e) {
+            this.pipedChannel.disconnect();
+            throw new SSHException(e);
+        }
+    }
+
+    /**
+     *
+     * @param host
+     * @param command
+     * @throws SSHException
+     */
+    public void sendForwardPipedCommand(String host, String... command) throws SSHException {
+        Session session = this.forwardSessions.get(host);
+        this.pipedChannel = sendPipedCommand(session, command);
+        try {
+            this.pipedReader = new BufferedReader(new InputStreamReader(
+                    new BufferedInputStream(this.pipedChannel.getInputStream())));
+        } catch(IOException e) {
+            this.pipedChannel.disconnect();
+            throw new SSHException(e);
+        }
+    }
+
+    private static Channel sendPipedCommand(Session session, String... command) throws SSHException {
+        if(session == null || !session.isConnected()) {
+            throw new SSHException("not connected, please connect first");
+        }
+        try {
+            StringBuilder sb = new StringBuilder();
+            for(String tok : command) {
+                if(sb.length() > 0) {
+                    sb.append(" ");
+                }
+                sb.append(tok);
+            }
+            Channel channel = session.openChannel("exec");
+            ChannelExec.class.cast(channel).setCommand(sb.toString());
+            channel.setOutputStream(null);
+            channel.connect();
+            return channel;
+        } catch(JSchException e) {
+            log.error("connection error: " + e.getMessage());
+            throw new SSHException(e);
+        }
+    }
+
+    public void terminatePipedCommand() {
+        if(this.pipedReader != null) {
+            try {
+                this.pipedReader.close();
+            } catch(IOException e) {}
+        }
+        terminatePipedCommand(this.pipedChannel);
+    }
+
+    public void terminateForwardPipedCommand(String host) {
+        Reader reader = this.forwardPipedReaders.remove(host);
+        if(reader != null) {
+            try {
+                reader.close();
+            } catch(IOException e) {}
+        }
+        terminatePipedCommand(this.forwardPipedChannels.remove(host));
+    }
+
+    private static void terminatePipedCommand(Channel channel) {
+        if(channel != null && !channel.isClosed()) {
+            channel.disconnect();
+        }
+    }
+
+    /**
+     *
      * @param file
      * @param destinationPath
      * @param permissions
@@ -379,7 +530,7 @@ public class SSHClient {
         sendFile(session, file, destinationPath, permissions);
     }
 
-    public static void sendFile(Session session, File file, String destinationPath, FilePermissions permissions)
+    private static void sendFile(Session session, File file, String destinationPath, FilePermissions permissions)
             throws SSHException {
         if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
