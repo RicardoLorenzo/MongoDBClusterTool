@@ -45,9 +45,9 @@ public class TestConfiguration {
          */
         sb.append("cd /home/");
         sb.append(user);
-        sb.append("\ngit config --global http.proxy http://");
+        sb.append("\ngit clone http://");
         sb.append(serverName);
-        sb.append("\ngit clone http://github.com/RicardoLorenzo/YCSB.git\n");
+        sb.append("/YCSB.git\n");
         sb.append("cd YCSB\nmvn package -Dmaven.test.skip=true\n");
         sb.append("chown ");
         sb.append(user);
@@ -78,6 +78,14 @@ public class TestConfiguration {
         sb.append("  fi\n");
         sb.append("  service apache2 restart\n");
         sb.append("fi\n");
+
+        sb.append("PKG=$(dpkg -l | grep \" git \")\n");
+        sb.append("if [ -z \"$PKG\" ]; then\n");
+        sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
+        sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y git\nfi\n\n");
+
+        sb.append("git clone --mirror https://github.com/RicardoLorenzo/YCSB.git /var/www/YCSB.git\n");
+        sb.append("PWD=$(pwd);\ncd /var/www/YCSB.git/\ngit update-server-info\ncd $PWD\n");
 
         return sb.toString();
     }
