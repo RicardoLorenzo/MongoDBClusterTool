@@ -45,7 +45,9 @@ public class TestConfiguration {
          */
         sb.append("cd /home/");
         sb.append(user);
-        sb.append("\ngit clone https://github.com/RicardoLorenzo/YCSB.git\n");
+        sb.append("\ngit config --global http.proxy http://");
+        sb.append(serverName);
+        sb.append("\ngit clone http://github.com/RicardoLorenzo/YCSB.git\n");
         sb.append("cd YCSB\nmvn package -Dmaven.test.skip=true\n");
         sb.append("chown ");
         sb.append(user);
