@@ -212,7 +212,7 @@ public class PuppetConfiguration {
         sb.append("apt-get update\n");
 
         /**
-         * Apache proxy connfiguration
+         * Apache proxy configuration
          */
         sb.append("if [ -z \"$(dpkg -l | grep apache2)\" ]; then\n");
         sb.append("  apt-get -y install apache2 \n");

@@ -38,10 +38,12 @@ public class SSHClient {
     private String host;
     private Integer port;
     private Session session;
+    private Map<String, Session> forwardSessions;
     private byte[] output;
 
     public SSHClient(String host, int port) throws IOException {
         JSch.setLogger(new SSHLogger());
+        forwardSessions = new HashMap<>();
         client = new JSch();
         try {
             keyStore = new SSHKeyStore();
@@ -53,13 +55,16 @@ public class SSHClient {
     }
 
     public void connect(String user) throws SSHException {
+        if(this.host == null || this.host.isEmpty()) {
+            throw new SSHException("ssh host not defined");
+        }
         if(user == null || user.isEmpty()) {
             throw new SSHException("ssh user not defined");
         }
         Session session;
         try {
             SSHKey key = keyStore.getKey(user);
-                client.addIdentity(user, key.getSSHPrivateKey().getBytes(), key.getSSHPublicKey(user).getBytes(), null);
+            client.addIdentity(user, key.getSSHPrivateKey().getBytes(), key.getSSHPublicKey(user).getBytes(), null);
             if(user.contains("@")) {
                 user = user.substring(0, user.indexOf("@"));
             }
@@ -75,13 +80,48 @@ public class SSHClient {
         this.session = session;
     }
 
+    public void forwardConnect(String host, String user, int port) throws SSHException {
+        if(host == null || host.isEmpty()) {
+            throw new SSHException("ssh host not defined");
+        }
+        if(user == null || user.isEmpty()) {
+            throw new SSHException("ssh user not defined");
+        }
+        Session session;
+        try {
+            SSHKey key = keyStore.getKey(user);
+                client.addIdentity(user, key.getSSHPrivateKey().getBytes(), key.getSSHPublicKey(user).getBytes(), null);
+            if(user.contains("@")) {
+                user = user.substring(0, user.indexOf("@"));
+            }
+            int assignedPort = this.session.setPortForwardingL(0, host, port);
+            session = this.client.getSession(user, host, assignedPort);
+            Properties config = new java.util.Properties();
+            config.put("StrictHostKeyChecking", "no");
+            session.setConfig(config);
+            session.connect();
+            forwardSessions.put(host, session);
+        } catch(JSchException e) {
+            log.error("connection error: " + e.getMessage());
+            throw new SSHException(e);
+        }
+        this.session = session;
+    }
+
     public void disconnect() {
         if(this.session != null && this.session.isConnected()) {
             this.session.disconnect();
         }
     }
 
-    private int verifyResponse(InputStream in) throws IOException {
+    public void forwardDisconnect(String host) {
+        Session session = this.forwardSessions.remove(host);
+        if(session != null && session.isConnected()) {
+            session.disconnect();
+        }
+    }
+
+    private static int verifyResponse(InputStream in) throws IOException {
         /**
          * 0 for success and 1 or 2 for error
          */
@@ -119,7 +159,23 @@ public class SSHClient {
      * @throws SSHException
      */
     public Map<String, byte[]> getFiles(String sourcePath) throws SSHException {
-        if(this.session == null || !this.session.isConnected()) {
+        return getFiles(this.session, sourcePath);
+    }
+
+    /**
+     *
+     * @param host
+     * @param sourcePath
+     * @return
+     * @throws SSHException
+     */
+    public Map<String, byte[]> getForwardFiles(String host, String sourcePath) throws SSHException {
+        Session session = this.forwardSessions.get(host);
+        return getFiles(session, sourcePath);
+    }
+
+    public static Map<String, byte[]> getFiles(Session session, String sourcePath) throws SSHException {
+        if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
         Map<String, byte[]> files = new HashMap<>();
@@ -132,7 +188,7 @@ public class SSHClient {
                 StringBuilder sb = new StringBuilder();
                 sb.append("scp -f ");
                 sb.append(sourcePath);
-                channel = this.session.openChannel("exec");
+                channel = session.openChannel("exec");
                 ChannelExec.class.cast(channel).setCommand(sb.toString());
 
                 out = channel.getOutputStream();
@@ -209,8 +265,30 @@ public class SSHClient {
         }
     }
 
+    /**
+     *
+     * @param command
+     * @return
+     * @throws SSHException
+     */
     public int sendCommand(String... command) throws SSHException {
-        if(this.session == null || !this.session.isConnected()) {
+        return sendCommand(this.session, this.output, command);
+    }
+
+    /**
+     *
+     * @param host
+     * @param command
+     * @return
+     * @throws SSHException
+     */
+    public int sendForwardCommand(String host, String... command) throws SSHException {
+        Session session = this.forwardSessions.get(host);
+        return sendCommand(session, this.output, command);
+    }
+
+    public static int sendCommand(Session session, byte[] output, String... command) throws SSHException {
+        if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
         try {
@@ -226,7 +304,7 @@ public class SSHClient {
                     }
                     sb.append(tok);
                 }
-                channel = this.session.openChannel("exec");
+                channel = session.openChannel("exec");
                 ChannelExec.class.cast(channel).setCommand(sb.toString());
                 channel.setOutputStream(null);
                 in = channel.getInputStream();
@@ -247,7 +325,7 @@ public class SSHClient {
                         Thread.sleep(250);
                     } catch(InterruptedException e) {}
                 }
-                this.output = out.toByteArray();
+                output = out.toByteArray();
                 return channel.getExitStatus();
             } finally {
                 if(in != null) {
@@ -269,9 +347,34 @@ public class SSHClient {
         }
     }
 
-    public void sendFile(File file, String destinationPath, FilePermissions permissions)
+    /**
+     *
+     * @param file
+     * @param destinationPath
+     * @param permissions
+     * @throws SSHException
+     */
+    public void sendFile(File file, String destinationPath, FilePermissions permissions) throws SSHException {
+        sendFile(this.session, file, destinationPath, permissions);
+    }
+
+    /**
+     *
+     * @param host
+     * @param file
+     * @param destinationPath
+     * @param permissions
+     * @throws SSHException
+     */
+    public void sendForwardFile(String host, File file, String destinationPath, FilePermissions permissions)
             throws SSHException {
-        if(this.session == null || !this.session.isConnected()) {
+        Session session = this.forwardSessions.get(host);
+        sendFile(session, file, destinationPath, permissions);
+    }
+
+    public static void sendFile(Session session, File file, String destinationPath, FilePermissions permissions)
+            throws SSHException {
+        if(session == null || !session.isConnected()) {
             throw new SSHException("not connected, please connect first");
         }
         try {
@@ -286,7 +389,7 @@ public class SSHClient {
                 StringBuilder sb = new StringBuilder();
                 sb.append("scp -p -t ");
                 sb.append(destinationPath);
-                channel = this.session.openChannel("exec");
+                channel = session.openChannel("exec");
                 ChannelExec.class.cast(channel).setCommand(sb.toString());
 
                 out = channel.getOutputStream();

@@ -69,21 +69,27 @@
                 </a>
                 <ul class="dropdown-menu">
                     <li>
-                        <a href="@routes.YCSBApplication.createTestNodes()">
+                        <a href="@routes.TestApplication.createTestNodes()">
                             <i class="icon-wrench"></i>
                             Create nodes
                         </a>
                     </li>
                     <li>
-                        <a href="@routes.GoogleComputeEngineApplication.gceIndex(None)">
+                        <a href="@routes.TestApplication.runTest(None)">
                             <i class="icon-fire"></i>
                             Run test
                         </a>
                     </li>
                     <li>
-                        <a href="@routes.GoogleComputeEngineApplication.gceIndex(None)">
+                        <a href="@routes.TestApplication.deleteTestNodes()">
                             <i class="icon-trash"></i>
                             Delete nodes
+                        </a>
+                    </li>
+                    <li>
+                        <a href="@routes.TestApplication.getTestNodesPrivateKey()" target="_blank">
+                            <i class="icon-download"></i>
+                            Test SSH key
                         </a>
                     </li>
                 </ul>

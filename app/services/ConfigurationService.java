@@ -30,6 +30,7 @@ import utils.puppet.PuppetConfigurationException;
 import utils.ssh.FilePermissions;
 import utils.ssh.SSHClient;
 import utils.ssh.SSHException;
+import utils.ycsb.TestConfiguration;
 
 import javax.inject.Inject;
 import java.io.File;
@@ -46,18 +47,17 @@ import java.util.StringTokenizer;
 @Configurable
 public class ConfigurationService {
     public static final String CLUSTER_USER = "mongodb@localhost";
-    public static final String YCSB_USER = "ycsb@localhost";
+    public static final String TEST_USER = "test@localhost";
     public static final String NODE_NAME_PUPPET = "puppetmaster";
     public static final String NODE_NAME_CONF = "conf";
     public static final String NODE_NAME_SHARD = "shard";
-    public static final String NODE_NAME_YCSB = "ycsb";
-    public static final String NODE_NAME_YCSB_JUMP = "ycsb-jump";
+    public static final String NODE_NAME_TEST = "test";
+    public static final String NODE_NAME_TEST_JUMP = "test-jump";
     public static final String NODE_TAG_PUPPET = "puppet";
     public static final String NODE_TAG_CONF = "config";
     public static final String NODE_TAG_SHARD = "shard";
-    public static final String NODE_TAG_YCSB = "ycsb";
-    public static final String NODE_TAG_YCSB_JUMP = "ycsb-jump";
-    //public static final String PUPPET_AUTOSTART_SCRIPT = "mongodb_master_autostart.sh";
+    public static final String NODE_TAG_TEST = "test";
+    public static final String NODE_TAG_TEST_JUMP = "test-jump";
     private static GoogleAuthenticationService authService;
     private static GoogleComputeEngineService googleComputeService;
     private static GoogleCloudStorageClient googleStorageClient;
@@ -94,22 +94,28 @@ public class ConfigurationService {
         return new File(applicationDirectory + "/cluster.name");
     }
 
-    private static File getNodeStartupScriptFile() {
-        return new File(applicationDirectory + "/node-startup.sh");
+    private static File getStartupScriptFile() throws IOException {
+        return File.createTempFile("startup-script", ".sh");
     }
 
-    private static String getPuppetServerName(String clusterName) throws GoogleComputeEngineException {
-        StringBuilder puppetServer = new StringBuilder();
-        puppetServer.append(clusterName);
-        puppetServer.append("-");
-        puppetServer.append(ConfigurationService.NODE_NAME_PUPPET);
-        puppetServer.append(".c.");
-        puppetServer.append(ConfigurationService.projectId);
-        puppetServer.append(".internal");
-        return puppetServer.toString();
+    private static String getInternalServerName(String instanceName) throws GoogleComputeEngineException {
+        StringBuilder name = new StringBuilder();
+        name.append(instanceName);
+        name.append(".c.");
+        name.append(ConfigurationService.projectId);
+        name.append(".internal");
+        return name.toString();
     }
 
-    public static String generatePuppetStartupScript(String clusterName, String networkName) throws PuppetConfigurationException, GoogleComputeEngineException, GoogleCloudStorageException {
+    public static String getServerName(String clusterName, String nodeName) {
+        StringBuilder name = new StringBuilder();
+        name.append(clusterName);
+        name.append("-");
+        name.append(nodeName);
+        return name.toString();
+    }
+
+    public static String generatePuppetMasterStartupScript(String clusterName, String networkName) throws PuppetConfigurationException, GoogleComputeEngineException, GoogleCloudStorageException {
         checkGoogleAuthentication();
         if(bucketId == null || bucketId.isEmpty()) {
             throw new GoogleCloudStorageException("parameter 'google.bucketId' not specified in the configuration");
@@ -118,6 +124,10 @@ public class ConfigurationService {
         scriptPath.append("autostart/");
         scriptPath.append(clusterName);
         scriptPath.append("/puppetmaster_autostart.sh");
+        /**
+         * There is a limit of 32K for the metadata in Google Compute Engine. To avoid any size problems
+         * the application upload the file to Google Storage and store the link in the metadata.
+         */
         String puppetScriptContent = PuppetConfiguration.getPuppetStartupScriptContent(clusterName, googleComputeService.getNetworkRange(networkName));
         return googleStorageClient.putFile(bucketId, scriptPath.toString(), "plain/text", puppetScriptContent.getBytes());
     }
@@ -134,10 +144,12 @@ public class ConfigurationService {
         }
     }
 
-    public static File getNodeStartupScript(String clusterName) throws GoogleComputeEngineException {
-        File f = getNodeStartupScriptFile();
+    public static File getPuppetNodeStartupScriptFile(String clusterName) throws GoogleComputeEngineException {
         try {
-            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(getPuppetServerName(clusterName)));
+            File f = getStartupScriptFile();
+            FileUtils.writeFile(f, PuppetConfiguration.getNodeStartupScriptContent(
+                    getInternalServerName(getServerName(clusterName, NODE_NAME_PUPPET))));
+            return f;
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
@@ -145,7 +157,6 @@ public class ConfigurationService {
         } catch(PuppetConfigurationException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
-        return f;
     }
 
     public static String getPuppetFile(final Integer type, String name) throws PuppetConfigurationException, GoogleComputeEngineException {
@@ -181,6 +192,35 @@ public class ConfigurationService {
             }
         } catch(IOException e) {
             throw new GoogleComputeEngineException(e);
+        }
+    }
+
+    public static File getTestJumpNodeStartupScriptFile(String networkName) throws GoogleComputeEngineException {
+        checkGoogleAuthentication();
+        try {
+            File f = getStartupScriptFile();
+            FileUtils.writeFile(f, TestConfiguration.getJumpServerStartupScriptContent(
+                    googleComputeService.getNetworkRange(networkName)));
+            return f;
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
+        } catch(FileLockException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
+        }
+    }
+
+    public static File getTestNodeStartupScriptFile(String clusterName) throws GoogleComputeEngineException {
+        try {
+            File f = getStartupScriptFile();
+            FileUtils.writeFile(f, TestConfiguration.getNodeStartupScriptContent(
+                    getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP))));
+            return f;
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
+        } catch(FileLockException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
+        } catch(PuppetConfigurationException e) {
+            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
     }
 

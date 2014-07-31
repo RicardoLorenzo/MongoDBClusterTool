@@ -308,7 +308,7 @@ public class GoogleComputeEngineService {
             throw new GoogleComputeEngineException("network not defined");
         }
 
-        File startupScript = configurationService.getNodeStartupScript(clusterName);
+        File startupScript = configurationService.getPuppetNodeStartupScriptFile(clusterName);
         /**
          * Verify the machine type to get the proper Link
          */
@@ -369,33 +369,29 @@ public class GoogleComputeEngineService {
         /**
          * Create the puppetmaster node
          */
-        StringBuilder instance_name = new StringBuilder();
-        instance_name.append(clusterName);
-        instance_name.append("-");
-        instance_name.append(ConfigurationService.NODE_NAME_PUPPET);
+        String instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_PUPPET);
         tags = Arrays.asList(ConfigurationService.NODE_TAG_PUPPET, clusterName);
-        if(!client.instanceExists(instance_name.toString())) {
+        if(!client.instanceExists(instanceName)) {
             String networkName = network.get(0);
             if(networkName.contains("/")) {
                 networkName = networkName.substring(networkName.lastIndexOf("/") + 1);
             }
-            client.createInstance(instance_name.toString(), machinePrefix.toString().concat("n1-standard-1"), network,
+            client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), network,
                     rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
-                    ConfigurationService.generatePuppetStartupScript(clusterName, networkName), true);
+                    ConfigurationService.generatePuppetMasterStartupScript(clusterName, networkName), true);
         } else {
-            log.info("instance [" + instance_name.toString() + "] already exists, not created");
+            log.info("instance [" + instanceName + "] already exists, not created");
         }
         configurationService.setClusterName(clusterName);
 
         /**
          * Create the config nodes
          */
+        instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_CONF);
         tags = Arrays.asList(ConfigurationService.NODE_TAG_CONF, clusterName);
         for(Integer i = 1; i <= 3; i++) {
-            instance_name = new StringBuilder();
-            instance_name.append(clusterName);
-            instance_name.append("-");
-            instance_name.append(ConfigurationService.NODE_NAME_CONF);
+            StringBuilder instance_name = new StringBuilder();
+            instance_name.append(instanceName);
             instance_name.append("-node-");
             instance_name.append(i);
 
@@ -412,13 +408,12 @@ public class GoogleComputeEngineService {
          * Create the shard nodes data disks
          */
         Map<String, Map<String, String>> instancesDataDisks = new HashMap<>();
+        instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_SHARD);
         tags = Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName);
         for(Integer i = 1; i <= shards; i++) {
             Map<String, String> dataDisks = new HashMap<>();
-            instance_name = new StringBuilder();
-            instance_name.append(clusterName);
-            instance_name.append("-");
-            instance_name.append(ConfigurationService.NODE_NAME_SHARD);
+            StringBuilder instance_name = new StringBuilder();
+            instance_name.append(instanceName);
             instance_name.append("-node-");
             instance_name.append(i);
             try {
@@ -448,16 +443,19 @@ public class GoogleComputeEngineService {
         /**
          * Create the shard nodes instances
          */
-        tags = Arrays.asList(ConfigurationService.NODE_TAG_SHARD, "mongodb");
-        for(Map.Entry<String, Map<String, String>> instance : instancesDataDisks.entrySet()) {
-            if(client.instanceExists(instance.getKey())) {
-                log.info("instance [" + instance.getKey() + "] already exists, not created");
-                continue;
-            }
+        try {
+            for(Map.Entry<String, Map<String, String>> instance : instancesDataDisks.entrySet()) {
+                if(client.instanceExists(instance.getKey())) {
+                    log.info("instance [" + instance.getKey() + "] already exists, not created");
+                    continue;
+                }
 
-            client.createInstance(instance.getKey(), machineType, network, rootDiskSizeGb, sourceImage,
-                    instance.getValue(), tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
-                    startupScript.getAbsolutePath(), false);
+                client.createInstance(instance.getKey(), machineType, network, rootDiskSizeGb, sourceImage,
+                        instance.getValue(), tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
+                        startupScript.getAbsolutePath(), false);
+            }
+        } finally {
+            startupScript.delete();
         }
     }
 
@@ -482,7 +480,7 @@ public class GoogleComputeEngineService {
         configurationService.setClusterName(null);
     }
 
-    public void createNode(Integer testNodes, String machineType, String sourceImage, Integer rootDiskSizeGb)
+    public void createTestNodes(Integer testNodes, String machineType, String sourceImage, Integer rootDiskSizeGb)
             throws GoogleComputeEngineException {
         List<String> tags;
         SSHKey sshKey = SSHKeyFactory.generateKey();
@@ -498,8 +496,10 @@ public class GoogleComputeEngineService {
             throw new GoogleComputeEngineException("cluster is not created, you must create a cluster before to create the testing nodes");
         }
 
+        /**
+         * Get the cluster network
+         */
         String clusterNetwork = getClusterNetwork();
-        File startupScript = null;
 
         /**
          * Verify the machine type to get the proper Link
@@ -526,7 +526,7 @@ public class GoogleComputeEngineService {
          */
         try {
             SSHKeyStore store = new SSHKeyStore();
-            store.addKey(ConfigurationService.YCSB_USER, sshKey);
+            store.addKey(ConfigurationService.TEST_USER, sshKey);
         } catch(ClassNotFoundException e) {
             log.info("cannot store cluster ssh key on disk: " + e.getMessage());
             throw new GoogleComputeEngineException(e);
@@ -536,42 +536,65 @@ public class GoogleComputeEngineService {
         }
 
         /**
-         * TODO Configure the startup scripts for jump and node servers
+         * Creates the jump server
          */
-
-        /**
-         * Get the cluster network
-         */
-        StringBuilder instance_name = new StringBuilder();
-        instance_name.append(clusterName);
-        instance_name.append("-");
-        instance_name.append(ConfigurationService.NODE_NAME_YCSB_JUMP);
-        tags = Arrays.asList(ConfigurationService.NODE_TAG_YCSB_JUMP, clusterName);
-        if(!client.instanceExists(instance_name.toString())) {
-            client.createInstance(instance_name.toString(), machinePrefix.toString().concat("n1-standard-1"), Arrays.asList(clusterNetwork),
-                    rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.YCSB_USER)),
-                    null, true);
-        } else {
-            log.info("instance [" + instance_name.toString() + "] already exists, not created");
-        }
-        configurationService.setClusterName(clusterName);
-
-        tags = Arrays.asList(ConfigurationService.NODE_TAG_YCSB, clusterName);
-        for(Integer i = 1; i <= testNodes; i++) {
-            instance_name = new StringBuilder();
-            instance_name.append(clusterName);
-            instance_name.append("-");
-            instance_name.append(ConfigurationService.NODE_NAME_YCSB);
-            instance_name.append("-node-");
-            instance_name.append(i);
-
-            if(client.instanceExists(instance_name.toString())) {
-                log.info("instance [" + instance_name.toString() + "] already exists, not created");
-                continue;
+        String instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_TEST_JUMP);
+        tags = Arrays.asList(ConfigurationService.NODE_TAG_TEST_JUMP, clusterName);
+        if(!client.instanceExists(instanceName)) {
+            String networkName = clusterNetwork;
+            if(networkName.contains("/")) {
+                networkName = networkName.substring(networkName.lastIndexOf("/") + 1);
             }
-            client.createInstance(instance_name.toString(), machineType, Arrays.asList(clusterNetwork),
-                    rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.YCSB_USER)),
-                    startupScript.getAbsolutePath(), false);
+            File startupScript = ConfigurationService.getTestJumpNodeStartupScriptFile(networkName);
+            try {
+                client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), Arrays.asList(clusterNetwork),
+                        rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.TEST_USER)),
+                        startupScript.getAbsolutePath(), true);
+            } finally {
+                startupScript.delete();
+            }
+        } else {
+            log.info("instance [" + instanceName + "] already exists, not created");
         }
+
+        instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_TEST);
+        File startupScript = configurationService.getTestNodeStartupScriptFile(clusterName);
+        tags = Arrays.asList(ConfigurationService.NODE_TAG_TEST, clusterName);
+        try {
+            for(Integer i = 1; i <= testNodes; i++) {
+                StringBuilder instance_name = new StringBuilder();
+                instance_name.append(instanceName);
+                instance_name.append("-node-");
+                instance_name.append(i);
+
+                if(client.instanceExists(instance_name.toString())) {
+                    log.info("instance [" + instance_name.toString() + "] already exists, not created");
+                    continue;
+                }
+                client.createInstance(instance_name.toString(), machineType, Arrays.asList(clusterNetwork),
+                        rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.TEST_USER)),
+                        startupScript.getAbsolutePath(), false);
+            }
+        } finally {
+            startupScript.delete();
+        }
+    }
+
+    public void deleteTestNodes() throws GoogleComputeEngineException {
+        checkAuthentication();
+
+        String clusterName = configurationService.getClusterName();
+        if(clusterName == null) {
+            throw new GoogleComputeEngineException("no cluster previously created");
+        }
+
+        for(Instance i : client.getInstances(Arrays.asList(ConfigurationService.NODE_TAG_TEST, clusterName))) {
+            client.deleteInstance(i.getName());
+        }
+        for(Instance i : client.getInstances(Arrays.asList(ConfigurationService.NODE_TAG_TEST_JUMP, clusterName))) {
+            client.deleteInstance(i.getName());
+        }
+
+        configurationService.setClusterName(null);
     }
 }

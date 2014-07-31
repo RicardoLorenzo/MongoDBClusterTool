@@ -1,6 +1,5 @@
-@(testNodeCreationForm: Form[views.data.TestNodeCreationForm],
-machineTypes:Map[String, Boolean],
-images:Map[String, Boolean])
+@(testNodeDeletionForm: Form[views.data.TestNodeDeletionForm],
+delete:String)
 
 @import form._
 
@@ -10,7 +9,7 @@ images:Map[String, Boolean])
         <div class="panel-heading">
             <h4 class="panel-title">
                 <i class="icon-leaf icon-white"></i>
-                Test nodes creation wizard
+                Test nodes deletion wizard
             </h4>
         </div>
         <div class="panel-body">
@@ -24,33 +23,12 @@ images:Map[String, Boolean])
                 <a class="btn btn-primary" href="@routes.Application.index()">Accept</a>
             </div>
             } else {
-            @helper.form(routes.TestApplication.createTestNodesPost(), 'class -> "form-horizontal") {
+            <p>All the instances in the test nodes will be completely removed. Do you want to proceed?</p>
+
+            @helper.form(routes.TestApplication.deleteTestNodesPost(), 'class -> "form-horizontal") {
             <fieldset>
-                <!-- Node number -->
-                @text(testNodeCreationForm("testNodes"),
-                label = "Number of test nodes",
-                placeholder = "4",
-                help = "Please enter the number of test nodes")
-
-                <!-- Machine type -->
-                @select(testNodeCreationForm("machineType"),
-                "Choose the machine type",
-                machineTypes,
-                false,
-                "Select the machine type")
-
-                <!-- Image -->
-                @select(testNodeCreationForm("image"),
-                "Choose the OS image",
-                images,
-                false,
-                "Select the OS image")
-
-                <!-- Disk size -->
-                @text(testNodeCreationForm("rootDiskSizeGb"),
-                label = "OS disk size (GB)",
-                placeholder = "16",
-                help = "Please enter the OS disk size")
+                <!-- Delete -->
+                @hidden(testNodeDeletionForm("delete"))
 
                 <div class="control-group">
                     <div class="controls">
@@ -63,11 +41,11 @@ images:Map[String, Boolean])
                 </div>
             </fieldset>
             }
-            }
             @if(flash.containsKey("error")) {
             <div id="error-message" class="alert alert-error">
                 @flash.get("error")
             </div>
+            }
             }
         </div>
     </div>

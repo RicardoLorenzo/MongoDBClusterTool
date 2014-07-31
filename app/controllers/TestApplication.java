@@ -30,40 +30,44 @@ import utils.gce.auth.GoogleComputeEngineAuthImpl;
 import utils.play.BugWorkaroundForm;
 import utils.puppet.PuppetConfiguration;
 import utils.puppet.PuppetConfigurationException;
+import utils.security.SSHKey;
+import utils.security.SSHKeyStore;
 import views.data.FileDeletionForm;
 import views.data.TestNodeCreationForm;
+import views.data.TestNodeDeletionForm;
 
 import javax.inject.Inject;
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.TreeMap;
 
 @org.springframework.stereotype.Controller
-public class YCSBApplication extends Controller {
+public class TestApplication extends Controller {
     private static GoogleAuthenticationService googleAuth;
     private static ConfigurationService configurationService;
     private static GoogleComputeEngineService googleService;
 
     @Inject
     void setGoogleService(@Qualifier("gauth-service") GoogleAuthenticationService googleAuth) {
-        YCSBApplication.googleAuth = googleAuth;
+        TestApplication.googleAuth = googleAuth;
     }
 
     @Inject
     void setGoogleService(@Qualifier("conf-service") ConfigurationService confService) {
-        YCSBApplication.configurationService = confService;
+        TestApplication.configurationService = confService;
     }
 
     @Inject
     void setGoogleService(@Qualifier("gce-service") GoogleComputeEngineService googleService) {
-        YCSBApplication.googleService = googleService;
+        TestApplication.googleService = googleService;
     }
 
     public static Result createTestNodes() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
             boolean option_chosen;
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -99,7 +103,7 @@ public class YCSBApplication extends Controller {
     public static Result createTestNodesPost() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -125,17 +129,18 @@ public class YCSBApplication extends Controller {
                         images
                 ));
             } else {
-                //try {
-                    //googleService.
+                try {
+                    googleService.createTestNodes(nodeCreationForm.getTestNodes(), nodeCreationForm.getMachineType(),
+                            nodeCreationForm.getImage(), nodeCreationForm.getRootDiskSizeGb());
                     flash("success", "File successfully deleted.");
-                //} catch(GoogleComputeEngineException e) {
-                    //return ok(views.html.error.render(e.getMessage()));
-                //}
-                return ok(views.html.test_nodes_creation.render(
-                        formData,
-                        null,
-                        null
-                ));
+                    return ok(views.html.test_nodes_creation.render(
+                            formData,
+                            null,
+                            null
+                    ));
+                } catch(GoogleComputeEngineException e) {
+                    return ok(views.html.error.render(e.getMessage()));
+                }
             }
         } catch(GoogleComputeEngineException e) {
             return ok(views.html.error.render(e.getMessage()));
@@ -145,7 +150,7 @@ public class YCSBApplication extends Controller {
     public static Result runTest(Option<String> fileName) {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -168,7 +173,7 @@ public class YCSBApplication extends Controller {
     public static Result runTestPost() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -184,7 +189,7 @@ public class YCSBApplication extends Controller {
             } else {
                 try {
                     ConfigurationService.deletePuppetFile(PuppetConfiguration.PUPPET_FILE, fileDeletion.getFileName());
-                    flash("success", "File successfully deleted.");
+                    flash("success", "Test nodes creation launched! Please check the running operations in the cluster status page.");
                 } catch(PuppetConfigurationException e) {
                     return ok(views.html.error.render(e.getMessage()));
                 }
@@ -195,6 +200,71 @@ public class YCSBApplication extends Controller {
                 ));
             }
         } catch(GoogleComputeEngineException e) {
+            return ok(views.html.error.render(e.getMessage()));
+        }
+    }
+
+    public static Result deleteTestNodes() {
+        String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
+        try {
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
+            if(result != null) {
+                return redirect(result);
+            }
+            TestNodeDeletionForm testNodesDeletion = new TestNodeDeletionForm();
+            Form<TestNodeDeletionForm> formData = Form.form(TestNodeDeletionForm.class).fill(testNodesDeletion);
+            return ok(views.html.test_nodes_deletion.render(
+                    formData,
+                    testNodesDeletion.getDelete()
+            ));
+        } catch(GoogleComputeEngineException e) {
+            return ok(views.html.error.render(e.getMessage()));
+        }
+    }
+
+    public static Result deleteTestNodesPost() {
+        String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
+        try {
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
+            if(result != null) {
+                return redirect(result);
+            }
+            Form<TestNodeDeletionForm> formData = new BugWorkaroundForm<>(TestNodeDeletionForm.class).bindFromRequest();
+            TestNodeDeletionForm nodeDeletionForm = formData.get();
+            if(formData.hasErrors()) {
+                flash("error", "Please correct errors above.");
+                return ok(views.html.test_nodes_deletion.render(
+                        formData,
+                        nodeDeletionForm.getDelete()
+                ));
+            } else {
+                try {
+                    googleService.deleteTestNodes();
+                } catch(GoogleComputeEngineException e) {
+                    return ok(views.html.error.render(e.getMessage()));
+                }
+                flash("success", "Test nodes deletion launched! Please check the running operations in the cluster status page.");
+                return ok(views.html.test_nodes_deletion.render(
+                        formData,
+                        null
+                ));
+            }
+        } catch(GoogleComputeEngineException e) {
+            return ok(views.html.error.render(e.getMessage()));
+        }
+    }
+
+    public static Result getTestNodesPrivateKey() {
+        try {
+            SSHKeyStore store = new SSHKeyStore();
+            SSHKey key = store.getKey(ConfigurationService.TEST_USER);
+            if(key == null) {
+                return ok(views.html.error.render("no cluster key found"));
+            }
+            return ok(key.getSSHPrivateKey()).as("text/plain");
+        } catch(ClassNotFoundException e) {
+            return ok(views.html.error.render(e.getMessage()));
+        } catch(IOException e) {
             return ok(views.html.error.render(e.getMessage()));
         }
     }
