@@ -47,17 +47,14 @@ public class TestConfiguration {
         sb.append(serverName);
         sb.append("/YCSB.git/info/refs;\n  if [ \"$?\" -eq 0 ]; then\n");
         sb.append("    break;\n  fi\n  sleep 1;\ndone\n");
-        sb.append("cd /home/");
+        sb.append("su - ");
         sb.append(user);
-        sb.append("\ngit clone http://");
+        sb.append(" -c \"git clone http://");
         sb.append(serverName);
-        sb.append(":80/YCSB.git\n");
-        sb.append("cd YCSB\nmvn package -Dmaven.test.skip=true\n");
-        sb.append("chown ");
+        sb.append("/YCSB.git\"\n");
+        sb.append("su - ");
         sb.append(user);
-        sb.append(":");
-        sb.append(user);
-        sb.append(" . -R\n");
+        sb.append(" -c \"cd YCSB && mvn package -Dmaven.test.skip=true\"\n");
         return sb.toString();
     }
 
