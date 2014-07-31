@@ -242,6 +242,17 @@ public class GoogleComputeEngineService {
         return client.instanceExists(instance_name.toString());
     }
 
+    public List<String> getInstancesNetworkAddresses(List<String> tags) throws GoogleComputeEngineException {
+        checkAuthentication();
+        List<String> addresses = new ArrayList<>();
+        for(Instance instance : client.getInstances(tags)) {
+            for(NetworkInterface i : instance.getNetworkInterfaces()) {
+                addresses.add(i.getNetworkIP());
+            }
+        }
+        return addresses;
+    }
+
     public String getClusterPublicAddress() throws GoogleComputeEngineException {
         checkAuthentication();
         String clusterName = configurationService.getClusterName();

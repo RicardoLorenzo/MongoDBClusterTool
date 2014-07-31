@@ -30,7 +30,7 @@ import utils.puppet.PuppetConfigurationException;
 import utils.ssh.FilePermissions;
 import utils.ssh.SSHClient;
 import utils.ssh.SSHException;
-import utils.ycsb.TestConfiguration;
+import utils.test.TestConfiguration;
 
 import javax.inject.Inject;
 import java.io.File;

@@ -1,4 +1,4 @@
-package utils.ycsb;
+package utils.test;
 
 import services.ConfigurationService;
 import utils.puppet.PuppetConfigurationException;
@@ -7,6 +7,7 @@ import utils.puppet.PuppetConfigurationException;
  * Created by ricardolorenzo on 30/07/2014.
  */
 public class TestConfiguration {
+    private static final String YCSB_REPOSITORY = "https://github.com/RicardoLorenzo/YCSB.git";
 
     public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
         String user = ConfigurationService.TEST_USER;
@@ -54,7 +55,9 @@ public class TestConfiguration {
         sb.append("/YCSB.git\"\n");
         sb.append("su - ");
         sb.append(user);
-        sb.append(" -c \"cd YCSB && mvn package -Dmaven.test.skip=true\"\n");
+        sb.append(" -c \"cd YCSB && mvn package -Dmaven.test.skip=true -DproxySet=true -DproxyHost=");
+        sb.append(serverName);
+        sb.append(" -DproxyPort=80\"\n");
         return sb.toString();
     }
 
@@ -85,7 +88,9 @@ public class TestConfiguration {
         sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
         sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y git\nfi\n\n");
 
-        sb.append("git clone --mirror https://github.com/RicardoLorenzo/YCSB.git /var/www/YCSB.git\n");
+        sb.append("git clone --mirror ");
+        sb.append(YCSB_REPOSITORY);
+        sb.append(" /var/www/YCSB.git\n");
         sb.append("PWD=$(pwd);\ncd /var/www/YCSB.git/\ngit update-server-info\ncd $PWD\n");
 
         return sb.toString();
