@@ -20,8 +20,6 @@ public class TestConfiguration {
         StringBuilder homeDirectory = new StringBuilder();
         homeDirectory.append("/home/");
         homeDirectory.append(user);
-        homeDirectory.append("/");
-        homeDirectory.append(YCSB_DIRECTORY);
 
         StringBuilder sb = new StringBuilder();
         sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
@@ -73,12 +71,14 @@ public class TestConfiguration {
         sb.append(user);
         sb.append(" ");
         sb.append(homeDirectory.toString());
-        sb.append("/");
-        sb.append(YCSB_DIRECTORY);
-        sb.append(" -R\n");
+        sb.append("/.m2 -R\n");
         sb.append("  runCommandAsUser ");
         sb.append(user);
-        sb.append(" sed -i '/<module>mapkeeper<\\/module>/d' pom.xml\n");
+        sb.append(" \"sed -i '/<module>mapkeeper<\\/module>/d' ");
+        sb.append(homeDirectory.toString());
+        sb.append("/");
+        sb.append(YCSB_DIRECTORY);
+        sb.append("/pom.xml\"\n");
         sb.append("  runCommandAsUser ");
         sb.append(user);
         sb.append(" \"cd ");
