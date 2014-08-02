@@ -16,8 +16,10 @@
 
 package utils.puppet;
 
+import conf.PlayConfiguration;
 import utils.puppet.disk.PuppetDiskConfiguration;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +36,7 @@ public class PuppetConfiguration {
     private static final String PUPPET_MANIFESTS_DIR = "manifests";
     private static final String PUPPET_FILES_DIR = "files";
     private static final String PUPPET_TEMPLATES_DIR = "templates";
+    private static final String projectId;
 
     static {
         SUPPORTED_FILESYSTEMS = new ArrayList<>();
@@ -42,6 +45,7 @@ public class PuppetConfiguration {
         SUPPORTED_FILESYSTEMS.add("btrfs");
         DISK_PER_PROCESS = new PuppetDiskConfiguration("disk per process", "One process per disk, processes not share the disk");
         DISK_RAID0 = new PuppetDiskConfiguration("raid0", "RAID0, all processes share the same disk pool");
+        projectId = PlayConfiguration.getProperty("google.projectId");
     }
 
     public static List<PuppetDiskConfiguration> getSupportedDiskConfigurations() {
@@ -159,21 +163,13 @@ public class PuppetConfiguration {
         return sb.toString();
     }
 
-    public static String getNodeStartupScriptContent(String serverName) throws PuppetConfigurationException {
+    public static String getNodeStartupScriptContent(String serverName) throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("#!/bin/bash\n\n");
-        sb.append("export http_proxy=http://");
+        sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
+        sb.append("\nsetProxy ");
         sb.append(serverName);
-        sb.append("\necho \"Acquire::http::Proxy \\\"http://");
-        sb.append(serverName);
-        sb.append("\\\";\n\" > /etc/apt/apt.conf.d/90proxy\n\n");
-        sb.append("for i in $(seq 1 1 100); do\n");
-        sb.append("  wget -O /dev/null");
-        sb.append(" http://http.debian.net/debian/dists/wheezy/Release.gpg;\n  if [ \"$?\" -eq 0 ]; then\n");
-        sb.append("    break;\nfi\n  sleep 1;\ndone\nsleep 4\n");
-        sb.append("if [ -z \"$(dpkg -l | grep puppet)\" ]; then\n");
-        sb.append("  apt-get update && apt-get install -o DPkg::options::=\"--force-confdef\"");
-        sb.append(" -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y puppet\nfi\n\n");
+        sb.append("\ncheckConnection http://http.debian.net/debian/dists/wheezy/Release.gpg\n");
+        sb.append("installPackage puppet\n");
         sb.append("echo \"[main]\n");
         sb.append("logdir=/var/log/puppet\nvardir=/var/lib/puppet\nssldir=/var/lib/puppet/ssl\n");
         sb.append("rundir=/var/run/puppet\nfactpath=$vardir/lib/facter\ntemplatedir=$confdir/templates\n");
@@ -198,7 +194,7 @@ public class PuppetConfiguration {
         return sb.toString();
     }
 
-    public static String getPuppetStartupScriptContent(String clusterName, String networkRange) throws PuppetConfigurationException {
+    public static String getPuppetStartupScriptContent(String clusterName, String networkRange) throws IOException {
         if(networkRange == null || networkRange.isEmpty()) {
             throw new IllegalArgumentException("incorrect network range");
         }
@@ -206,15 +202,12 @@ public class PuppetConfiguration {
         //IpNetworkCalculator ipcalc = new IpNetworkCalculator();
 
         StringBuilder sb = new StringBuilder();
-        sb.append("#!/bin/bash\n\n");
-        sb.append("# WARNING: Update repositories before start\n");
-        sb.append("apt-get update\n");
+        sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
 
         /**
          * Apache proxy configuration
          */
-        sb.append("if [ -z \"$(dpkg -l | grep apache2)\" ]; then\n");
-        sb.append("  apt-get -y install apache2 \n");
+        sb.append("function configApache() {\n");
         sb.append("  if ! [ -e /etc/apache2/mods-enabled/proxy.load ]; then\n");
         sb.append("    ln -s /etc/apache2/mods-available/proxy.load /etc/apache2/mods-enabled/proxy.load\n");
         sb.append("    ln -s /etc/apache2/mods-available/proxy_http.load /etc/apache2/mods-enabled/proxy_http.load\n");
@@ -224,18 +217,18 @@ public class PuppetConfiguration {
         sb.append("\n</Proxy>\" > /etc/apache2/conf.d/proxy\n");
         sb.append("  fi\n");
         sb.append("  service apache2 restart\n");
-        sb.append("fi\n");
+        sb.append("}\n");
+        sb.append("installPackage apache2 configApache\n");
 
         /**
          * Puppet basic configuration
          */
-        sb.append("if [ -z \"$(dpkg -l | grep puppetmaster)\" ]; then\n");
-        sb.append("  if [ -z \"$(dpkg -l | grep unzip)\" ]; then\n    apt-get -y install unzip\n  fi\n");
-        sb.append("  apt-get -y install puppetmaster\n");
+        sb.append("function configPuppet() {\n");
+        sb.append("  installPackage unzip\n");
         sb.append("  wget -O /tmp/puppet-timezone.zip https://github.com/saz/puppet-timezone/archive/master.zip\n");
         sb.append("  cd /tmp && unzip puppet-timezone.zip\n  cd puppet-timezone-master && puppet module build .\n");
         sb.append("  puppet module install pkg/saz-timezone-*.tar.gz\n  puppet module install puppetlabs-apt\n");
-        sb.append("  mkdir -p ");
+        sb.append("  makeDirectory ");
         sb.append(getPuppetTemplatesDirectory());
         sb.append("/hosts\n  cat /etc/hosts > ");
         sb.append(getPuppetTemplatesDirectory());
@@ -251,6 +244,7 @@ public class PuppetConfiguration {
         sb.append("  echo \"autosign = true\" >> ");
         sb.append(PUPPET_HOME_DIR);
         sb.append("/puppet.conf\n");
+
         /**
          * Generate puppet manifest files
          */
@@ -275,12 +269,12 @@ public class PuppetConfiguration {
         sb.append(getPuppetManifestsDirectory());
         sb.append("/mongodb-conf.pp\n");
 
-        sb.append("  if ! [ -e ");
+        /**
+         * Generate puppet files
+         */
+        sb.append("  makeDirectory ");
         sb.append(getPuppetFilesDirectory());
-        sb.append(" ]; then\n    mkdir -p ");
-        sb.append(getPuppetFilesDirectory());
-        sb.append("\n  fi\n");
-        sb.append("  echo \"GRUB_DEFAULT=0\nGRUB_TIMEOUT=0\nGRUB_DISTRIBUTOR=\\\"Debian\\\"\n");
+        sb.append("\n  echo \"GRUB_DEFAULT=0\nGRUB_TIMEOUT=0\nGRUB_DISTRIBUTOR=\\\"Debian\\\"\n");
         sb.append("GRUB_CMDLINE_LINUX_DEFAULT=\\\"quiet\\\"\n");
         sb.append("GRUB_CMDLINE_LINUX=\\\"console=ttyS0,38400n8 cgroup_enable=memory swapaccount=1\\\"\n");
         sb.append("\" > ");
@@ -290,11 +284,18 @@ public class PuppetConfiguration {
         sb.append("logappend=true\n\" > ");
         sb.append(getPuppetFilesDirectory());
         sb.append("/mongodb-configsrv.conf");
+        /**
+         * TODO generate and improve microshard file and link generation
+         */
         sb.append("  wget -O ");
         sb.append(getPuppetFilesDirectory());
         sb.append("/mongodb-microshards http://storage.googleapis.com/");
-        sb.append("peta-mongo/autostart/mongodb-microshards\n\n  service puppetmaster restart\nfi");
+        sb.append(projectId);
+        sb.append("/autostart/mongodb-microshards\n\n");
+        sb.append("  service puppetmaster restart\n");
 
+        sb.append("}\n");
+        sb.append("installPackage puppetmaster configPuppet\n");
         return sb.toString();
     }
 }

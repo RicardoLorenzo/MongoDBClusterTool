@@ -11,11 +11,15 @@ public interface Test {
 
     public String getBinaryFile();
 
+    public String getDatabaseUrl();
+
     public String getWorkingDirectory();
 
     public void setBinaryDirectory(String binaryDirectory);
 
     public void setBinaryFile(String binaryFile);
+
+    public void setDatabaseUrl(String databaseUrl);
 
     public void setWorkingDirectory(String workingDirectory);
 }

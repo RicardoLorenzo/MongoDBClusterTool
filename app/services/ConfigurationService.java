@@ -83,15 +83,19 @@ public class ConfigurationService {
 
     private static void checkGoogleAuthentication() throws GoogleComputeEngineException {
         if(googleStorageClient == null) {
-            if(authService.getCredential() == null) {
+            if(GoogleAuthenticationService.getCredential() == null) {
                 throw new GoogleComputeEngineException("not authenticated on Google");
             }
-            googleStorageClient = new GoogleCloudStorageClient(authService.getAuthentication());
+            googleStorageClient = new GoogleCloudStorageClient(GoogleAuthenticationService.getAuthentication());
         }
     }
 
     private static File getClusterNameFile() {
         return new File(applicationDirectory + "/cluster.name");
+    }
+
+    private static File getTestNodeListFile() {
+        return new File(applicationDirectory + "/test-nodes.list");
     }
 
     private static File getStartupScriptFile() throws IOException {
@@ -115,7 +119,8 @@ public class ConfigurationService {
         return name.toString();
     }
 
-    public static String generatePuppetMasterStartupScript(String clusterName, String networkName) throws PuppetConfigurationException, GoogleComputeEngineException, GoogleCloudStorageException {
+    public static String generatePuppetMasterStartupScript(String clusterName, String networkName) throws IOException,
+            GoogleComputeEngineException, GoogleCloudStorageException {
         checkGoogleAuthentication();
         if(bucketId == null || bucketId.isEmpty()) {
             throw new GoogleCloudStorageException("parameter 'google.bucketId' not specified in the configuration");
@@ -153,8 +158,6 @@ public class ConfigurationService {
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
-            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
-        } catch(PuppetConfigurationException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
     }
@@ -218,8 +221,6 @@ public class ConfigurationService {
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
-            throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
-        } catch(PuppetConfigurationException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
     }

@@ -1,0 +1,110 @@
+@(runTestForm: Form[views.data.RunTestForm],
+phases:Map[String, Boolean])
+
+@import form._
+
+@main(title = "MongoDB") {
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                Run test wizard
+            </h4>
+        </div>
+        <div class="panel-body">
+            @if(flash.containsKey("success")) {
+            <div id="success-message" class="alert alert-success">
+                @flash.get("success")
+            </div>
+            <p></p>
+
+            <div class="center-block">
+                <a class="btn btn-primary" href="@routes.Application.index()">Accept</a>
+            </div>
+            } else {
+            @helper.form(routes.TestApplication.runTestPost(), 'class -> "form-horizontal") {
+            <fieldset>
+                <!-- Phase -->
+                @select(runTestForm("phase"),
+                "Test phase",
+                phases,
+                false,
+                "Please select the test phase")
+
+                <!-- Threads -->
+                @text(runTestForm("threads"),
+                label = "Number of threads",
+                placeholder = "1",
+                help = "Please enter the test threads")
+
+                <!-- Records -->
+                @text(runTestForm("recordCount"),
+                label = "Number of records",
+                placeholder = "100000",
+                help = "Please enter the number of records")
+
+                <!-- Operations -->
+                @text(runTestForm("operationCount"),
+                label = "Number of operations",
+                placeholder = "100000",
+                help = "Please enter the number of operations")
+
+                <!-- Bulk -->
+                @text(runTestForm("bulkCount"),
+                label = "Operations in a bulk",
+                placeholder = "10000",
+                help = "Please enter the number of operations in a bulk")
+
+                <!-- Read all fields -->
+                @checkbox(runTestForm("readAllFields"),
+                "Read all fields",
+                "readAllFields",
+                false,
+                "Check if you want to read all fields from collection")
+
+                <!-- Read proportion -->
+                @text(runTestForm("readProportion"),
+                label = "Read proportion",
+                placeholder = "0.8",
+                help = "Please enter the read proportion")
+
+                <!-- Update proportion -->
+                @text(runTestForm("updateProportion"),
+                label = "Update proportion",
+                placeholder = "0.2",
+                help = "Please enter the update proportion")
+
+                <!-- Scan proportion -->
+                @text(runTestForm("scanProportion"),
+                label = "Scan proportion",
+                placeholder = "0",
+                help = "Please enter the scan proportion")
+
+                <!-- Insert proportion -->
+                @text(runTestForm("insertProportion"),
+                label = "Insert proportion",
+                placeholder = "0",
+                help = "Please enter the insert proportion")
+
+                <div class="control-group">
+                    <div class="controls">
+                        <input id="submit" type="submit" value="Proceed" class="btn btn-primary">
+                        <button id="cancel" class="btn cancel"
+                                formaction="@routes.Application.index()" formmethod="get">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </fieldset>
+            }
+            }
+            @if(flash.containsKey("error")) {
+            <div id="error-message" class="alert alert-error">
+                @flash.get("error")
+            </div>
+            }
+        </div>
+    </div>
+</div>
+}

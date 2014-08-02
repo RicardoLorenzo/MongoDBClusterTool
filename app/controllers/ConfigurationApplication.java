@@ -73,7 +73,7 @@ public class ConfigurationApplication extends Controller {
     public static Result deletePuppetFile(Option<String> fileName) {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -96,7 +96,7 @@ public class ConfigurationApplication extends Controller {
     public static Result deletePuppetFilePost() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }

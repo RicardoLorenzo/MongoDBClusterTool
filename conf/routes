@@ -25,7 +25,7 @@ POST       /gce/deleteFile                controllers.ConfigurationApplication.d
 
 GET        /test/createNodes              controllers.TestApplication.createTestNodes()
 POST       /test/createNodes              controllers.TestApplication.createTestNodesPost()
-GET        /test/run                      controllers.TestApplication.runTest(fileName: Option[String])
+GET        /test/run                      controllers.TestApplication.runTest()
 POST       /test/run                      controllers.TestApplication.runTestPost()
 GET        /test/deleteNodes              controllers.TestApplication.deleteTestNodes()
 POST       /test/deleteNodes              controllers.TestApplication.deleteTestNodesPost()

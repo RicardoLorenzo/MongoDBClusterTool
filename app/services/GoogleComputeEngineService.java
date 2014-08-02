@@ -34,7 +34,6 @@ import utils.gce.GoogleComputeEngineClient;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.OperationsCache;
 import utils.gce.storage.GoogleCloudStorageException;
-import utils.puppet.PuppetConfigurationException;
 import utils.security.SSHKey;
 import utils.security.SSHKeyFactory;
 import utils.security.SSHKeyStore;
@@ -70,10 +69,10 @@ public class GoogleComputeEngineService {
 
     private static void checkAuthentication() throws GoogleComputeEngineException {
         if(client == null) {
-            if(authService.getCredential() == null) {
+            if(GoogleAuthenticationService.getCredential() == null) {
                 throw new GoogleComputeEngineException("not authenticated on Google");
             }
-            client = new GoogleComputeEngineClient(authService.getAuthentication());
+            client = new GoogleComputeEngineClient(GoogleAuthenticationService.getAuthentication());
         }
     }
 
@@ -234,7 +233,7 @@ public class GoogleComputeEngineService {
     }
 
     public boolean clusterExists() throws GoogleComputeEngineException {
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         StringBuilder instance_name = new StringBuilder();
         instance_name.append(clusterName);
         instance_name.append("-");
@@ -255,7 +254,7 @@ public class GoogleComputeEngineService {
 
     public String getClusterPublicAddress() throws GoogleComputeEngineException {
         checkAuthentication();
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         StringBuilder instance_name = new StringBuilder();
         instance_name.append(clusterName);
         instance_name.append("-");
@@ -276,7 +275,7 @@ public class GoogleComputeEngineService {
 
     public String getClusterNetwork() throws GoogleComputeEngineException {
         checkAuthentication();
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         StringBuilder instance_name = new StringBuilder();
         instance_name.append(clusterName);
         instance_name.append("-");
@@ -298,7 +297,7 @@ public class GoogleComputeEngineService {
     public void createCluster(String clusterName, Integer shards, Integer processes, Integer disksPerShard,
                               String machineType, List<String> network, String sourceImage, String diskType,
                               String diskRaid, String dataFileSystem, Integer dataDiskSizeGb,
-                              Integer rootDiskSizeGb) throws GoogleComputeEngineException, GoogleCloudStorageException, PuppetConfigurationException {
+                              Integer rootDiskSizeGb) throws GoogleComputeEngineException, GoogleCloudStorageException {
         List<String> tags;
         SSHKey sshKey = SSHKeyFactory.generateKey();
         StringBuilder machinePrefix = new StringBuilder();
@@ -308,8 +307,8 @@ public class GoogleComputeEngineService {
         machinePrefix.append(client.getZone());
         machinePrefix.append("/machineTypes/");
 
-        if(configurationService.getClusterName() != null) {
-            throw new GoogleComputeEngineException("cluster [" + configurationService.getClusterName() +
+        if(ConfigurationService.getClusterName() != null) {
+            throw new GoogleComputeEngineException("cluster [" + ConfigurationService.getClusterName() +
                     "] is already created, delete it first to create another");
         }
         if(clusterName == null) {
@@ -319,7 +318,7 @@ public class GoogleComputeEngineService {
             throw new GoogleComputeEngineException("network not defined");
         }
 
-        File startupScript = configurationService.getPuppetNodeStartupScriptFile(clusterName);
+        File startupScript = ConfigurationService.getPuppetNodeStartupScriptFile(clusterName);
         /**
          * Verify the machine type to get the proper Link
          */
@@ -387,13 +386,17 @@ public class GoogleComputeEngineService {
             if(networkName.contains("/")) {
                 networkName = networkName.substring(networkName.lastIndexOf("/") + 1);
             }
-            client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), network,
-                    rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
-                    ConfigurationService.generatePuppetMasterStartupScript(clusterName, networkName), true);
+            try {
+                client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), network,
+                        rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
+                        ConfigurationService.generatePuppetMasterStartupScript(clusterName, networkName), true);
+            } catch(IOException e) {
+                throw new GoogleComputeEngineException(e);
+            }
         } else {
             log.info("instance [" + instanceName + "] already exists, not created");
         }
-        configurationService.setClusterName(clusterName);
+        ConfigurationService.setClusterName(clusterName);
 
         /**
          * Create the config nodes
@@ -473,7 +476,7 @@ public class GoogleComputeEngineService {
     public void deleteCluster() throws GoogleComputeEngineException {
         checkAuthentication();
 
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         if(clusterName == null) {
             throw new GoogleComputeEngineException("no cluster previously created");
         }
@@ -488,7 +491,7 @@ public class GoogleComputeEngineService {
             client.deleteInstance(i.getName());
         }
 
-        configurationService.setClusterName(null);
+        ConfigurationService.setClusterName(null);
     }
 
     public void createTestNodes(Integer testNodes, String machineType, String sourceImage, Integer rootDiskSizeGb)
@@ -502,7 +505,7 @@ public class GoogleComputeEngineService {
         machinePrefix.append(client.getZone());
         machinePrefix.append("/machineTypes/");
 
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         if(clusterName == null) {
             throw new GoogleComputeEngineException("cluster is not created, you must create a cluster before to create the testing nodes");
         }
@@ -569,7 +572,7 @@ public class GoogleComputeEngineService {
         }
 
         instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_TEST);
-        File startupScript = configurationService.getTestNodeStartupScriptFile(clusterName);
+        File startupScript = ConfigurationService.getTestNodeStartupScriptFile(clusterName);
         tags = Arrays.asList(ConfigurationService.NODE_TAG_TEST, clusterName);
         try {
             for(Integer i = 1; i <= testNodes; i++) {
@@ -594,7 +597,7 @@ public class GoogleComputeEngineService {
     public void deleteTestNodes() throws GoogleComputeEngineException {
         checkAuthentication();
 
-        String clusterName = configurationService.getClusterName();
+        String clusterName = ConfigurationService.getClusterName();
         if(clusterName == null) {
             throw new GoogleComputeEngineException("no cluster previously created");
         }

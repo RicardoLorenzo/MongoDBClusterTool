@@ -17,11 +17,20 @@
 package conf;
 
 import play.Play;
+import utils.file.FileUtils;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * @author Ricardo Lorenzo <ricardo.lorenzo@mongodb.com>
  */
 public class PlayConfiguration {
+
+    public static final String getFileContent(final String filePath) throws IOException {
+        File f = Play.application().getFile(filePath);
+        return FileUtils.readFileAsString(f);
+    }
 
     public static final String getProperty(final String key) {
         return Play.application().configuration().getString(key);

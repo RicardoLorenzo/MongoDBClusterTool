@@ -36,7 +36,6 @@ import utils.gce.auth.GoogleComputeEngineAuthImpl;
 import utils.gce.storage.GoogleCloudStorageException;
 import utils.play.BugWorkaroundForm;
 import utils.puppet.PuppetConfiguration;
-import utils.puppet.PuppetConfigurationException;
 import utils.puppet.disk.PuppetDiskConfiguration;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
@@ -68,7 +67,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static Result gceIndex(Option<String> code) {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, code.isDefined() ? code.get() : null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, code.isDefined() ? code.get() : null);
             if(result != null) {
                 return redirect(result);
             }
@@ -81,7 +80,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static F.Promise<Result> gceDisks() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return F.Promise.promise(() -> redirect(result));
             }
@@ -107,7 +106,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static F.Promise<Result> gceInstances(Option<String> type) {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return F.Promise.promise(() -> redirect(result));
             }
@@ -171,7 +170,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static F.Promise<Result> gceZones() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return F.Promise.promise(() -> redirect(result));
             }
@@ -245,11 +244,12 @@ public class GoogleComputeEngineApplication extends Controller {
     public static Result createClusterWizardPost() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
         } catch(GoogleComputeEngineException e) {
+            return ok(views.html.error.render(e.getMessage()));
         }
         Form<ClusterCreationForm> formData = new BugWorkaroundForm<>(ClusterCreationForm.class).bindFromRequest();
         ClusterCreationForm clusterForm = formData.get();
@@ -308,8 +308,6 @@ public class GoogleComputeEngineApplication extends Controller {
             } catch(GoogleComputeEngineException e) {
                 return ok(views.html.error.render(e.getMessage()));
             } catch(GoogleCloudStorageException e) {
-                return ok(views.html.error.render(e.getMessage()));
-            } catch(PuppetConfigurationException e) {
                 return ok(views.html.error.render(e.getMessage()));
             }
             flash("success", "Cluster creation launched! Please check the running operations in the cluster status page.");

@@ -6,17 +6,21 @@ package utils.test;
 public class YCSBTest implements Test {
     public static final int PHASE_LOAD = 1;
     public static final int PHASE_RUN = 2;
-    public static final String WORKLOAD_FILE = "/tmp/ycsb.workload";
     private Integer phase;
     private String binaryFile;
     private String workingDirectory;
     private String binaryDirectory;
     private Integer threads;
     private String mongoDbUrl;
-    private String workload;
+    private String workloadFilePath;
+    private Integer bulkSize;
 
-    public YCSBTest(String binaryDirectory, String binaryFile) {
-        this.phase = PHASE_RUN;
+    public YCSBTest(String binaryDirectory, String binaryFile, String remoteWorloadFilePath, Integer threads,
+                    Integer bulkSize) {
+        setPhase(PHASE_RUN);
+        setWorkloadFilePath(remoteWorloadFilePath);
+        setThreads(threads);
+        setBulkSize(bulkSize);
     }
 
     @Override
@@ -35,13 +39,17 @@ public class YCSBTest implements Test {
                 break;
         }
         sb.append(" -P ");
-        sb.append(WORKLOAD_FILE);
+        sb.append(workloadFilePath);
         if(threads > 1) {
             sb.append(" -threads ");
             sb.append(threads);
         }
         sb.append(" -p mongodb.url=");
         sb.append(mongoDbUrl);
+        if(bulkSize > 1) {
+            sb.append(" -threads ");
+            sb.append(threads);
+        }
         return sb.toString();
     }
 
@@ -75,6 +83,22 @@ public class YCSBTest implements Test {
         this.workingDirectory = workingDirectory;
     }
 
+    @Override
+    public String getDatabaseUrl() {
+        return mongoDbUrl;
+    }
+
+    @Override
+    public void setDatabaseUrl(String mongoDbUrl) {
+        if(mongoDbUrl == null) {
+            return;
+        }
+        if(!mongoDbUrl.startsWith("mongodb://") && !mongoDbUrl.contains("//")) {
+            mongoDbUrl = "mongodb://".concat(mongoDbUrl);
+        }
+        this.mongoDbUrl = mongoDbUrl;
+    }
+
     public Integer getPhase() {
         return phase;
     }
@@ -91,25 +115,19 @@ public class YCSBTest implements Test {
         this.threads = threads;
     }
 
-    public String getMongoDbUrl() {
-        return mongoDbUrl;
+    public Integer getBulkSize() {
+        return bulkSize;
     }
 
-    public void setMongoDbUrl(String mongoDbUrl) {
-        if(mongoDbUrl == null) {
-            return;
-        }
-        if(!mongoDbUrl.startsWith("mongodb://") && !mongoDbUrl.contains("//")) {
-            mongoDbUrl = "mongodb://".concat(mongoDbUrl);
-        }
-        this.mongoDbUrl = mongoDbUrl;
+    public void setBulkSize(Integer bulkSize) {
+        this.bulkSize = bulkSize;
     }
 
-    public String getWorkload() {
-        return workload;
+    public String getWorkloadFilePath() {
+        return workloadFilePath;
     }
 
-    public void setWorkload(String workload) {
-        this.workload = workload;
+    public void setWorkloadFilePath(String workloadFilePath) {
+        this.workloadFilePath = workloadFilePath;
     }
 }

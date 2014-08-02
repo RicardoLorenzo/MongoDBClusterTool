@@ -21,26 +21,25 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import play.data.Form;
 import play.mvc.Controller;
 import play.mvc.Result;
-import scala.Option;
 import services.ConfigurationService;
 import services.GoogleAuthenticationService;
 import services.GoogleComputeEngineService;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.auth.GoogleComputeEngineAuthImpl;
 import utils.play.BugWorkaroundForm;
-import utils.puppet.PuppetConfiguration;
-import utils.puppet.PuppetConfigurationException;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
-import views.data.FileDeletionForm;
+import utils.test.TestException;
+import utils.test.TestRunner;
+import utils.test.YCSBTestRunner;
+import utils.test.data.YCSBWorkload;
+import views.data.RunTestForm;
 import views.data.TestNodeCreationForm;
 import views.data.TestNodeDeletionForm;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 @org.springframework.stereotype.Controller
 public class TestApplication extends Controller {
@@ -147,7 +146,7 @@ public class TestApplication extends Controller {
         }
     }
 
-    public static Result runTest(Option<String> fileName) {
+    public static Result runTest() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
             String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
@@ -155,15 +154,15 @@ public class TestApplication extends Controller {
                 return redirect(result);
             }
 
-            if(fileName.isEmpty()) {
-                return redirect(routes.ConfigurationApplication.updatePuppetConfiguration());
-            }
-            FileDeletionForm fileDeletion = new FileDeletionForm();
-            Form<FileDeletionForm> formData = Form.form(FileDeletionForm.class).fill(fileDeletion);
-            return ok(views.html.file_deletion.render(
+            Map<String, Boolean> phases = new HashMap<>();
+            phases.put("load", false);
+            phases.put("run", false);
+
+            RunTestForm runTest = new RunTestForm();
+            Form<RunTestForm> formData = Form.form(RunTestForm.class).fill(runTest);
+            return ok(views.html.run_test.render(
                     formData,
-                    fileName.get(),
-                    fileDeletion.getDelete()
+                    phases
             ));
         } catch(GoogleComputeEngineException e) {
             return ok(views.html.error.render(e.getMessage()));
@@ -177,25 +176,51 @@ public class TestApplication extends Controller {
             if(result != null) {
                 return redirect(result);
             }
-            Form<FileDeletionForm> formData = new BugWorkaroundForm<>(FileDeletionForm.class).bindFromRequest();
-            FileDeletionForm fileDeletion = formData.get();
+
+            Form<RunTestForm> formData = new BugWorkaroundForm<>(RunTestForm.class).bindFromRequest();
+            RunTestForm runTest = formData.get();
             if(formData.hasErrors()) {
+                Map<String, Boolean> phases = new HashMap<>();
+                phases.put("load", false);
+                phases.put("run", false);
+
                 flash("error", "Please correct errors above.");
-                return ok(views.html.file_deletion.render(
+                return ok(views.html.run_test.render(
                         formData,
-                        fileDeletion.getFileName(),
-                        fileDeletion.getDelete()
+                        phases
                 ));
             } else {
+                YCSBWorkload workload = new YCSBWorkload();
+                workload.setRecordcount(runTest.getRecordCount());
+                workload.setOperationcount(runTest.getOperationCount());
+                workload.setReadallfields(runTest.getReadAllFields());
+                workload.setReadproportion(runTest.getReadProportion());
+                workload.setUpdateproportion(runTest.getUpdateProportion());
+                workload.setScanproportion(runTest.getScanProportion());
+                workload.setInsertproportion(runTest.getInsertProportion());
+
                 try {
-                    ConfigurationService.deletePuppetFile(PuppetConfiguration.PUPPET_FILE, fileDeletion.getFileName());
-                    flash("success", "Test nodes creation launched! Please check the running operations in the cluster status page.");
-                } catch(PuppetConfigurationException e) {
+                    TestRunner runner =  new YCSBTestRunner(workload, runTest.getThreads(), runTest.getBulkCount());
+
+                    List<String> jumpNodesAddresses = googleService.getInstancesNetworkAddresses(
+                            Arrays.asList(ConfigurationService.NODE_TAG_TEST_JUMP));
+                    List<String> testNodesAddresses = googleService.getInstancesNetworkAddresses(
+                            Arrays.asList(ConfigurationService.NODE_TAG_TEST));
+                    if(jumpNodesAddresses == null || jumpNodesAddresses.isEmpty()) {
+                        throw new TestException("No jump server found. Have you the test nodes created?");
+                    }
+                    if(testNodesAddresses == null || testNodesAddresses.isEmpty()) {
+                        throw new TestException("No test nodes found. Something weird is happening, please recreate the test nodes");
+                    }
+                    runner.runTest(jumpNodesAddresses.get(0), testNodesAddresses);
+                    flash("success", "Test run launched! Please check the outcome in the results page.");
+                } catch(GoogleComputeEngineException e) {
+                    return ok(views.html.error.render(e.getMessage()));
+                } catch(TestException e) {
                     return ok(views.html.error.render(e.getMessage()));
                 }
-                return ok(views.html.file_deletion.render(
+                return ok(views.html.run_test.render(
                         formData,
-                        null,
                         null
                 ));
             }
