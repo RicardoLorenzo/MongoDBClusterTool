@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ### BEGIN INIT INFO
 # Provides:          mongod-microshards
 # Required-Start:    $remote_fs $syslog
@@ -17,6 +17,8 @@
 
 MOUNT_DIRECTORY="/mnt/mongodb"
 PROCESSES=1
+RAID_TYPE="none"
+FS_TYPE="ext4"
 DESC="MongoDB database"
 DAEMON=/usr/bin/mongod
 DAEMON_USER=mongodb
@@ -68,25 +70,37 @@ get_daemon_options() {
     return
   fi
 
-  local INDEX=0
+  local INDEX=1
   declare -a MOUNT_DIRS;
+  MOUNT_DIRS[0]=$MOUNT_DIRECTORY
+  MOUNT_DIRS[$INDEX]=
   for DIR in $(ls $MOUNT_DIRECTORY); do
     MOUNT_DIRS[$INDEX]=$DIR
     INDEX=$(( $INDEX + 1 ))
   done
 
   DAEMON_OPTS="--port $DAEMON_PORT"
-  if [ "$RAID_TYPE" == "raid0" ]; then
-     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0"
+  if [ "$RAID_TYPE" = "raid0" ]; then
+     if [ "$FS_TYPE" = "btrfs" ]; then
+       if ! [ -e "$MOUNT_DIRECTORY/${MOUNT_DIRS[1]}/$1" ]; then
+         mkdir -p $MOUNT_DIRECTORY/${MOUNT_DIRS[1]}/$1
+         chown $DAEMON_USER:$DAEMON_USER $MOUNT_DIRECTORY/${MOUNT_DIRS[1]}/$1
+       fi
+       DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[1]}/$1"
+     else
+       DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0"
+     fi
   else
-     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/$MOUNT_DIRS[$1]"
+     if ! [ -e "$MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1" ]; then
+       mkdir -p $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1
+       chown $DAEMON_USER:$DAEMON_USER $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1
+     fi
+     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1"
   fi
   DAEMON_OPTS="$DAEMON_OPTS --logpath /tmp/mongodb-shard-$1.log"
   DAEMON_OPTS="$DAEMON_OPTS --shardsvr"
   DAEMON_OPTS="$DAEMON_OPTS --journal"
   DAEMON_OPTS="$DAEMON_OPTS --directoryperdb --logappend"
-
-
 
   DAEMON_PORT=$(( $DAEMON_PORT + 1 ))
 }
