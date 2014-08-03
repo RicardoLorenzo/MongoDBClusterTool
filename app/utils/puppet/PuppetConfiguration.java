@@ -138,7 +138,8 @@ public class PuppetConfiguration {
                 .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb")
                 .setProperty("ensure", "stopped")
-                .setProperty("enable", "flase"));
+                .setProperty("enable", "flase")
+                .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "disk-format")
                 .setProperty("onlyif", "\\\"/usr/bin/test -e " + MONGODB_MOUNT_DIR + " -a 0 -lt \\$(ls " +
                         MONGODB_MOUNT_DIR + " | wc -l)\\\"")
@@ -203,15 +204,15 @@ public class PuppetConfiguration {
                 .setStringProperty("release", "dist")
                 .setStringProperty("repos", "10gen")
                 .setStringProperty("key", "7F0CEB10")
+                .setProperty("include_src", "false")
                 .setStringProperty("key_server", "keyserver.ubuntu.com")
                 .setNotify(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_KEY, "mongodb"));
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongodb-10gen")
-                .setStringProperty("command", "/usr/bin/apt-get install " +
-                        DEBIAN_INSTALL_OPTS +
-                        " --force-yes mongodb-org-server mongodb-org-tools")
+                .setStringProperty("command", "/usr/bin/apt-get install --force-yes mongodb-org-server mongodb-org-tools")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "apt-get update")
-                .setRequire(PuppetModule.TYPE_EXEC, "apt-get update"));
+                .setRequire(PuppetModule.TYPE_EXEC, "apt-get update")
+                .setRequire(PuppetModule.TYPE_APT_SOURCE, "mongodb"));
         return baseClass.toString();
     }
 
