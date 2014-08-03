@@ -18,6 +18,8 @@ package utils.puppet;
 
 import conf.PlayConfiguration;
 import utils.puppet.disk.PuppetDiskConfiguration;
+import utils.puppet.manifest.PuppetClass;
+import utils.puppet.manifest.PuppetModule;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,10 +34,13 @@ public class PuppetConfiguration {
     public static final List<String> SUPPORTED_FILESYSTEMS;
     public static final int PUPPET_MANIFEST = 1;
     public static final int PUPPET_FILE = 2;
+    private static final String DEBIAN_INSTALL_OPTS = "-o DPkg::options::=\"--force-confdef\" \\\n" +
+            "     -o DPkg::options::=\"--force-confold\" -o Dpkg::Options::=\"--force-overwrite\" -y";
     private static final String PUPPET_HOME_DIR = "/etc/puppet";
     private static final String PUPPET_MANIFESTS_DIR = "manifests";
     private static final String PUPPET_FILES_DIR = "files";
     private static final String PUPPET_TEMPLATES_DIR = "templates";
+    private static final String MONGODB_MOUNT_DIR = "/mnt/mongodb";
     private static final String projectId;
 
     static {
@@ -88,79 +93,126 @@ public class PuppetConfiguration {
         return sb.toString();
     }
 
-    public static String generateMongoConfClassManifest() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("class mongodb-conf {\n");
-        sb.append("  service { 'mongodb':\n    ensure => running,\n    enable => true,\n");
-        sb.append("    subscribe => File['/etc/mongodb.conf']\n  }\n\n");
-        sb.append("  file { '/etc/mongodb.conf':\n    notify => Service['mongodb'],\n    owner => 'root',\n");
-        sb.append("    group => 'root',\n    mode => 644,\n    source => 'puppet:///files/mongodb-configsrv.conf',\n");
-        sb.append("    require => Exec['mongodb-10gen']\n  }\n");
-        sb.append("}\n\n");
-        sb.toString();
-        return sb.toString();
+    public static String generateMongoConfClassManifest() throws PuppetConfigurationException {
+        PuppetClass confClass = new PuppetClass("mongodb-conf");
+        confClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb")
+                .setProperty("ensure", "running")
+                .setProperty("enable", "true")
+                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/mongodb.conf"));
+        confClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb.conf")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "644")
+                .setStringProperty("source", "puppet:///files/mongodb-config-server.conf")
+                .setNotify(PuppetModule.TYPE_SERVICE, "mongodb")
+                .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
+        return confClass.toString();
     }
 
-    public static String generateMongoShardClassManifest() {
-        /**
-         * TODO the approach is based on microshards init script
-         */
-        StringBuilder sb = new StringBuilder();
-        sb.append("class mongodb-shard {\n");
-        sb.append("  file { '/etc/init.d/mongodb-microshards':\n    owner => 'root',\n    group => 'root',\n");
-        sb.append("    mode => 755,\n    source => 'puppet:///files/mongodb-microshards',\n  }\n\n");
-        sb.append("  file { '/etc/default/grub':\n    notify  => Exec['update-grub'],\n    owner => 'root',\n");
-        sb.append("    group => 'root',\n    mode => 644,\n    source => 'puppet:///files/grub',\n");
-        sb.append("    require => Exec['mongodb-10gen']\n  }\n\n");
-        sb.append("  service { 'mongodb':\n    ensure => stopped,\n    enable => false,\n");
-        sb.append("    require => File['/etc/init.d/mongodb-microshards']\n  }\n\n");
-        sb.append("#\n#  WARNING: This is a workaround to enable cgroups kernel module. This workaround imply\n");
-        sb.append("#  a node restart, but happen only once.\n");
-        sb.append("  exec { 'test-mongodb-microshards':\n    command => '/usr/bin/test 0',\n");
-        sb.append("    onlyif => \\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups |");
-        sb.append("grep memory | awk '{ print $4 }')\\\",\n");
-        sb.append("    require => [\n                 Package['cgroup-bin'],\n");
-        sb.append("                 Service['mongodb']\n               ]\n  }\n \n");
-        sb.append("  service { 'mongodb-microshards':\n    ensure => running,\n    enable => true,\n");
-        sb.append("    require => [\n                  File['/etc/init.d/mongodb-microshards'],\n");
-        sb.append("                  Exec['test-mongodb-microshards']\n               ]\n  }\n\n");
-        sb.append("  package { 'cgroup-bin':\n    ensure => present\n  }\n\n");
-        sb.append("  exec { 'update-grub':\n    notify  => Exec['reboot'],\n    command => '/usr/sbin/update-grub',\n");
-        sb.append("    subscribe => File['/etc/default/grub'],\n    refreshonly => true\n  }\n\n");
-        sb.append("  exec { 'reboot':\n    command => '/sbin/reboot',\n    subscribe => Exec['update-grub'],\n");
-        sb.append("    refreshonly => true\n  }\n");
-        sb.append("}\n\n");
-        return sb.toString();
+    public static String generateMongoShardClassManifest(String diskRaid, String dataFileSystem)
+            throws PuppetConfigurationException {
+        PuppetClass shardClass = new PuppetClass("mongodb-shard");
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb-disks.conf")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "644")
+                .setStringProperty("source", "puppet:///files/mongodb-shard-disks.conf"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "755")
+                .setStringProperty("source", "puppet:///files/puppet-disk-format.sh")
+                .setRequire(PuppetModule.TYPE_FILE, "/etc/mongodb-disks.conf"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/init.d/mongodb-microshards")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "755")
+                .setStringProperty("source", "puppet:///files/puppet-mongodb-microshards.sh")
+                .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/default/grub")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "644")
+                .setStringProperty("source", "puppet:///files/grub")
+                .setNotify(PuppetModule.TYPE_EXEC, "update-grub")
+                .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb")
+                .setProperty("ensure", "stopped")
+                .setProperty("enable", "flase"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "disk-format")
+                .setProperty("onlyif", "\\\"/usr/bin/test -e " + MONGODB_MOUNT_DIR + " -a 0 -lt \\$(ls " +
+                        MONGODB_MOUNT_DIR + " | wc -l)\\\"")
+                .setStringProperty("command", "/usr/local/bin/puppet-disk-format")
+                .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
+                .setProperty("onlyif", "\\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups | grep memory | awk '{ print $4 }')\\\"")
+                .setStringProperty("command", "/usr/bin/test 0")
+                .setRequire(PuppetModule.TYPE_PACKAGE, "cgroup-bin")
+                .setRequire(PuppetModule.TYPE_SERVICE, "mongodb"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb-microshards")
+                .setProperty("ensure", "running")
+                .setProperty("enable", "true")
+                .setRequire(PuppetModule.TYPE_SERVICE, "mongodb")
+                .setRequire(PuppetModule.TYPE_EXEC, "disk-format")
+                .setRequire(PuppetModule.TYPE_FILE, "/etc/init.d/mongodb-microshards")
+                .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_PACKAGE, "cgroup-bin")
+                .setProperty("ensure", "present"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "update-grub")
+                .setStringProperty("command", "/usr/sbin/update-grub")
+                .setStringProperty("refreshonly", "true")
+                .setNotify(PuppetModule.TYPE_EXEC, "reboot")
+                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/default/grub"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "reboot")
+                .setStringProperty("command", "/sbin/reboot")
+                .setStringProperty("refreshonly", "true")
+                .setSubscribe(PuppetModule.TYPE_EXEC, "update-grub"));
+        return shardClass.toString();
     }
 
-    public static String generateMongoBaseClassManifest() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("class mongodb-base {\n");
-        sb.append("  class {\n 'timezone':\n   timezone => 'UTC'\n  }\n\n");
-        sb.append("  package { 'ntp':\n    ensure => present\n  }\n\n");
-        sb.append("  service { 'ntp':\n    ensure => running,\n    enable => true\n  }\n\n");
-        sb.append("  file { '/etc/hosts':\n    owner => 'root',\n    group => 'root',\n");
-        sb.append("    mode => 644,\n    content => template('hosts/hosts.erb')\n  }\n\n");
-        sb.append("  group { 'mongodb':\n    ensure => present\n  }\n\n");
-        sb.append("  user { 'mongodb':\n    ensure => present,\n    gid => 'mongodb',\n");
-        sb.append("    shell => '/bin/bash',\n    require => Group['mongodb']\n  }\n\n");
-        sb.append("#\n#  WARNING: Is important to perform an apt-get update before try to install\n");
-        sb.append("#  any package.\n");
-        sb.append("  exec { 'apt-get update':\n    notify => Exec['mongodb-10gen'],\n");
-        sb.append("    command => '/usr/bin/apt-get update',\n    subscribe => Apt::Source['mongodb']\n  }\n\n");
-        sb.append("  apt::key { 'mongodb':\n    key => '7F0CEB10',\n    key_server => 'keyserver.ubuntu.com'\n  }\n\n");
-        sb.append("  apt::source { 'mongodb':\n    notify => Exec['apt-get update'],\n");
-        sb.append("    location => 'http://downloads-distro.mongodb.org/repo/debian-sysvinit',\n");
-        sb.append("    release => 'dist',\n    repos => '10gen',\n    key => '7F0CEB10',\n");
-        sb.append("    key_server => 'keyserver.ubuntu.com',\n    include_src => false,\n");
-        sb.append("    require => Apt::Key['mongodb']\n  }\n");
-        sb.append("#\n#  WARNING: Cannot use 'package' because of the 10gen repo, so it needs to trigger\n");
-        sb.append("#  an 'apt-get update' before.\n");
-        sb.append("  exec { 'mongodb-10gen':\n");
-        sb.append("    command => '/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools',\n");
-        sb.append("    subscribe => Exec['apt-get update'],\n    require => Exec['apt-get update']\n  }\n");
-        sb.append("}\n\n");
-        return sb.toString();
+    public static String generateMongoBaseClassManifest() throws PuppetConfigurationException {
+        PuppetClass baseClass = new PuppetClass("mongodb-base");
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_CLASS, "timezone")
+                .setStringProperty("timezone", "UTC"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_PACKAGE, "ntp")
+                .setProperty("ensure", "present"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "ntp")
+                .setProperty("ensure", "running")
+                .setProperty("enable", "true"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/hosts")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "644")
+                .setProperty("content", "template('hosts/hosts.erb')"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_GROUP, "mongodb")
+                .setProperty("ensure", "present"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_USER, "mongodb")
+                .setProperty("ensure", "present")
+                .setStringProperty("gid", "mongodb")
+                .setStringProperty("shell", "/bin/bash")
+                .setRequire(PuppetModule.TYPE_GROUP, "mongodb"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "apt-get update")
+                .setStringProperty("command", "/usr/bin/apt-get update")
+                .setNotify(PuppetModule.TYPE_EXEC, "mongodb-10gen")
+                .setSubscribe(PuppetModule.TYPE_APT_SOURCE, "mongodb"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_APT_KEY, "mongodb")
+                .setStringProperty("key", "7F0CEB10")
+                .setStringProperty("key_server", "keyserver.ubuntu.com"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_APT_SOURCE, "mongodb")
+                .setStringProperty("location", "http://downloads-distro.mongodb.org/repo/debian-sysvinit")
+                .setStringProperty("release", "dist")
+                .setStringProperty("repos", "10gen")
+                .setStringProperty("key", "7F0CEB10")
+                .setStringProperty("key_server", "keyserver.ubuntu.com")
+                .setNotify(PuppetModule.TYPE_EXEC, "apt-get update")
+                .setRequire(PuppetModule.TYPE_APT_KEY, "mongodb"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongodb-10gen")
+                .setStringProperty("command", "/usr/bin/apt-get install " +
+                        DEBIAN_INSTALL_OPTS +
+                        " --force-yes mongodb-org-server mongodb-org-tools")
+                .setSubscribe(PuppetModule.TYPE_EXEC, "apt-get update")
+                .setRequire(PuppetModule.TYPE_EXEC, "apt-get update"));
+        return baseClass.toString();
     }
 
     public static String getNodeStartupScriptContent(String serverName) throws IOException {
@@ -191,15 +243,17 @@ public class PuppetConfiguration {
         sb.append("/auth.conf\n\npuppetd --test --waitforcert 60 --server ");
         sb.append(serverName);
         sb.append("\nservice puppet restart\n");
+        sb.append("installPackage mdadm\n");
+        sb.append("installPackage xfsprogs\n");
+        sb.append("installPackage btrfs-tools\n");
         return sb.toString();
     }
 
-    public static String getPuppetStartupScriptContent(String clusterName, String networkRange) throws IOException {
+    public static String getPuppetStartupScriptContent(String clusterName, String networkRange,
+                                                       String diskRaid, String dataFileSystem) throws IOException {
         if(networkRange == null || networkRange.isEmpty()) {
             throw new IllegalArgumentException("incorrect network range");
         }
-
-        //IpNetworkCalculator ipcalc = new IpNetworkCalculator();
 
         StringBuilder sb = new StringBuilder();
         sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
@@ -254,17 +308,23 @@ public class PuppetConfiguration {
         sb.append(getPuppetManifestsDirectory());
         sb.append("/site.pp\n");
         sb.append("  echo \"");
-        sb.append(generateMongoBaseClassManifest());
+        try {
+            sb.append(generateMongoBaseClassManifest());
+        } catch(PuppetConfigurationException e) {}
         sb.append("\" > ");
         sb.append(getPuppetManifestsDirectory());
         sb.append("/mongodb-base.pp\n");
         sb.append("  echo \"");
-        sb.append(generateMongoShardClassManifest());
+        try {
+            sb.append(generateMongoShardClassManifest(diskRaid, dataFileSystem));
+        } catch(PuppetConfigurationException e) {}
         sb.append("\" > ");
         sb.append(getPuppetManifestsDirectory());
         sb.append("/mongodb-shard.pp\n");
         sb.append("  echo \"");
-        sb.append(generateMongoConfClassManifest());
+        try {
+            sb.append(generateMongoConfClassManifest());
+        } catch(PuppetConfigurationException e) {}
         sb.append("\" > ");
         sb.append(getPuppetManifestsDirectory());
         sb.append("/mongodb-conf.pp\n");
@@ -283,19 +343,49 @@ public class PuppetConfiguration {
         sb.append("  echo \"configsvr=true\ndbpath=/var/lib/mongodb\nlogpath=/var/log/mongodb/mongodb.log\n");
         sb.append("logappend=true\n\" > ");
         sb.append(getPuppetFilesDirectory());
-        sb.append("/mongodb-configsrv.conf");
-        /**
-         * TODO generate and improve microshard file and link generation
-         */
-        sb.append("  wget -O ");
+        sb.append("/mongodb-config-server.conf\n");
+        sb.append("  echo \"");
+        sb.append(formatScriptForEcho(PlayConfiguration.getFileContent("scripts/puppet-disk-format.sh")));
+        sb.append("\" > ");
         sb.append(getPuppetFilesDirectory());
-        sb.append("/mongodb-microshards http://storage.googleapis.com/");
-        sb.append(projectId);
-        sb.append("/autostart/mongodb-microshards\n\n");
-        sb.append("  service puppetmaster restart\n");
+        sb.append("/puppet-disk-format.sh\n");
+        sb.append("  echo \"");
+        sb.append(formatScriptForEcho(PlayConfiguration.getFileContent("scripts/puppet-mongodb-microshards.sh")));
+        sb.append("\" > ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("/puppet-mongodb-microshards.sh\n");
+        sb.append("  echo \"MOUNT_DIRECTORY=\\\"");
+        sb.append(MONGODB_MOUNT_DIR);
+        sb.append("\\\"\n");
+        if(diskRaid != null && !diskRaid.isEmpty()) {
+            sb.append("RAID_TYPE=\\\"");
+            sb.append(diskRaid.toLowerCase());
+            sb.append("\\\"\n");
+        }
+        if(dataFileSystem != null && !dataFileSystem.isEmpty()) {
+            sb.append("FS_TYPE=\\\"");
+            sb.append(dataFileSystem.toLowerCase());
+            sb.append("\\\"\n");
+        }
+        sb.append("\" > ");
+        sb.append(getPuppetFilesDirectory());
+        sb.append("/mongodb-shard-disks.conf\n");
+
+        /**
+         *
+         * TODO add the configuration file
+         */
+
+
+        sb.append("\n  service puppetmaster restart\n");
 
         sb.append("}\n");
         sb.append("installPackage puppetmaster configPuppet\n");
         return sb.toString();
+    }
+
+    private static String formatScriptForEcho(String scriptContent) {
+        scriptContent = scriptContent.replace("\"", "\\\"");
+        return scriptContent.replace("$", "\\$");
     }
 }

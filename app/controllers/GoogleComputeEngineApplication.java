@@ -303,7 +303,7 @@ public class GoogleComputeEngineApplication extends Controller {
                 googleService.createCluster(clusterForm.getClusterName(), clusterForm.getShardNodes(),
                         clusterForm.getProcesses(), clusterForm.getNodeDisks(), clusterForm.getMachineType(),
                         Arrays.asList(clusterForm.getNetwork()), clusterForm.getImage(), clusterForm.getDataDiskType(),
-                        clusterForm.getDataDiskType(), clusterForm.getFileSystem(), clusterForm.getDataDiskSizeGb(),
+                        clusterForm.getDiskRaid(), clusterForm.getFileSystem(), clusterForm.getDataDiskSizeGb(),
                         clusterForm.getRootDiskSizeGb());
             } catch(GoogleComputeEngineException e) {
                 return ok(views.html.error.render(e.getMessage()));

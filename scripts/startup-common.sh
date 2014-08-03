@@ -33,6 +33,7 @@ function checkConnection() {
 function installPackage() {
   PKG=$(dpkg -l | awk '{ print $2 }' | grep "^$1:*")
   if [ -z "$PKG" ]; then
+    export DEBIAN_FRONTEND=noninteractive
     runCommand apt-get update
     runCommand apt-get --no-install-recommends install -o DPkg::options::="--force-confdef" \
      -o DPkg::options::="--force-confold" -o Dpkg::Options::="--force-overwrite" -y $1
