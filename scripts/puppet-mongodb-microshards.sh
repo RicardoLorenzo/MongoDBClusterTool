@@ -23,6 +23,10 @@ DAEMON_USER=mongodb
 DAEMON_PORT=27040
 DAEMON_OPTS=''
 
+if [ -e /etc/mongodb-shards.conf ]; then
+. /etc/mongodb-shards.conf
+fi
+
 boolean() {
   if [ -z '$1' ]; then
     echo false
@@ -57,11 +61,6 @@ get_pid() {
   fi
   local PID=$(ps ax | grep "dbpath /mnt/mongodb/$1" | grep -v grep | awk '{ print $1 }')
   echo $PID
-}
-
-get_disks() {
-  local DISKS="$(ls -l $MOUNT_DIRECTORY)"
-  echo $DISKS
 }
 
 get_daemon_options() {

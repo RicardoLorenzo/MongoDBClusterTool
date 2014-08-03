@@ -112,17 +112,17 @@ public class PuppetConfiguration {
     public static String generateMongoShardClassManifest(String diskRaid, String dataFileSystem)
             throws PuppetConfigurationException {
         PuppetClass shardClass = new PuppetClass("mongodb-shard");
-        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb-disks.conf")
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb-shards.conf")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
                 .setProperty("mode", "644")
-                .setStringProperty("source", "puppet:///files/mongodb-shard-disks.conf"));
+                .setStringProperty("source", "puppet:///files/mongodb-shards.conf"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
                 .setProperty("mode", "755")
                 .setStringProperty("source", "puppet:///files/puppet-disk-format.sh")
-                .setRequire(PuppetModule.TYPE_FILE, "/etc/mongodb-disks.conf"));
+                .setRequire(PuppetModule.TYPE_FILE, "/etc/mongodb-shards.conf"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/init.d/mongodb-microshards")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")

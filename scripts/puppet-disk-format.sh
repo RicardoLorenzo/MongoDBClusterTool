@@ -3,8 +3,8 @@ MOUNT_DIRECTORY="/mnt/mongodb"
 RAID_TYPE="none"
 FS_TYPE="ext4"
 
-if [ -e /etc/mongodb-disks.conf ]; then
-. /etc/mongodb-disks.conf
+if [ -e /etc/mongodb-shards.conf ]; then
+. /etc/mongodb-shards.conf
 fi
 
 getSystemDisks() {
