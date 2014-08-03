@@ -133,7 +133,8 @@ public class PuppetConfiguration {
                 .setStringProperty("group", "root")
                 .setProperty("mode", "755")
                 .setStringProperty("source", "puppet:///files/puppet-mongodb-microshards.sh")
-                .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
+                .setRequire(PuppetModule.TYPE_EXEC, "disk-format")
+                .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/default/grub")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")

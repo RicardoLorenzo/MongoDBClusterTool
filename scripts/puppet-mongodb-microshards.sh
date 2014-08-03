@@ -88,14 +88,14 @@ get_daemon_options() {
        fi
        DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[1]}/$1"
      else
+       if ! [ -e "$MOUNT_DIRECTORY/md0/$1" ]; then
+         mkdir -p $MOUNT_DIRECTORY/md0/$1
+         chown $DAEMON_USER:$DAEMON_USER $MOUNT_DIRECTORY/md0/$1
+       fi
        DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0"
      fi
   else
-     if ! [ -e "$MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1" ]; then
-       mkdir -p $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1
-       chown $DAEMON_USER:$DAEMON_USER $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1
-     fi
-     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}/$1"
+     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}"
   fi
   DAEMON_OPTS="$DAEMON_OPTS --logpath /tmp/mongodb-shard-$1.log"
   DAEMON_OPTS="$DAEMON_OPTS --shardsvr"
