@@ -63,13 +63,13 @@ formatDisks() {
             if [ "$RAID_TYPE" = "raid0" ]; then
                 createRaidDisk $@
                 if [ -z "$(file -s /dev/md0 | grep ext4)" ]; then
-                    mkfs.ext4 /dev/md0 > /dev/null 2>&1
+                    mkfs.ext4 /dev/md0
                 fi
                 mountDisk md0 ext4
             else
                 for DISK in $@; do
                     if [ -z "$(file -s /dev/${DISK}1 | grep ext4)" ]; then
-                        mkfs.ext4 /dev/${DISK}1 > /dev/null 2>&1
+                        mkfs.ext4 /dev/${DISK}1
                     fi
                     mountDisk $DISK ext4
                 done
@@ -79,29 +79,29 @@ formatDisks() {
             if [ "$RAID_TYPE" = "raid0" ]; then
                 createRaidDisk $@
                 if [ -z "$(file -s /dev/md0 | grep XFS)" ]; then
-                    mkfs.xfs /dev/md0 > /dev/null 2>&1
+                    mkfs.xfs /dev/md0
                 fi
                 mountDisk md0 xfs
             else
                 for DISK in $@; do
                     if [ -z "$(file -s /dev/${DISK}1 | grep XFS)" ]; then
-                        mkfs.xfs /dev/${DISK}1 > /dev/null 2>&1
+                        mkfs.xfs /dev/${DISK}1
                     fi
                     mountDisk $DISK xfs
                 done
             fi
             ;;
         btrfs)
-            local DISKS=""
             if [ "$RAID_TYPE" = "raid0" ]; then
+                local DISKS=""
                 for DISK in $@; do
-                    DISKS="/dev/${DISK}1 "
+                    DISKS="$DISKS/dev/${DISK}1 "
                 done
-                mkfs.btrfs -f -d raid0 $DISKS > /dev/null 2>&1
+                mkfs.btrfs -d raid0 $DISKS
                 mountDisk $1 btrfs
             else
                 for DISK in $@; do
-                    mkfs.btrfs -f /dev/${DISK}1
+                    mkfs.btrfs /dev/${DISK}1
                     mountDisk $DISK btrfs
                 done
             fi
