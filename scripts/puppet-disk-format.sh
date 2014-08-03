@@ -51,7 +51,7 @@ createRaidDisk() {
     if ! [ -e /dev/md0 ]; then
         local DISKS=
         for DISK in $@; do
-            DISKS="/dev/${DISK}1 "
+            DISKS="$DISKS/dev/${DISK}1 "
         done
         mdadm --create /dev/md0 --level=stripe --raid-devices=$# $DISKS
     fi

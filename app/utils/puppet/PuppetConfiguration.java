@@ -144,18 +144,19 @@ public class PuppetConfiguration {
                 .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongod")
                 .setStringProperty("command", "/usr/sbin/update-rc.d -f mongod remove && /usr/sbin/service mongod stop")
-                .setNotify(PuppetModule.TYPE_EXEC, "disk-format")
+                .setNotify(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "disk-format")
                 .setProperty("onlyif", "\\\"/usr/bin/test -e " + MONGODB_MOUNT_DIR + " -a 0 -eq \\$(ls " +
                         MONGODB_MOUNT_DIR + " | wc -l)\\\"")
                 .setStringProperty("command", "/usr/local/bin/puppet-disk-format")
-                .setSubscribe(PuppetModule.TYPE_EXEC, "mongod")
                 .setRequire(PuppetModule.TYPE_FILE, "/mnt/mongodb")
+                .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setProperty("onlyif", "\\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups | grep memory | awk '{ print $4 }')\\\"")
                 .setStringProperty("command", "/usr/bin/test 0")
+                .setSubscribe(PuppetModule.TYPE_EXEC, "mongod")
                 .setRequire(PuppetModule.TYPE_PACKAGE, "cgroup-bin")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongod"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb-microshards")
@@ -217,7 +218,7 @@ public class PuppetConfiguration {
                 .setNotify(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_KEY, "mongodb"));
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongodb-10gen")
-                .setStringProperty("command", "/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools")
+                .setStringProperty("command", "/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools mongodb-org-shell")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_SOURCE, "mongodb"));

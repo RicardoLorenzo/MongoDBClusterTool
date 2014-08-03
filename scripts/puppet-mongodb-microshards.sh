@@ -92,7 +92,7 @@ get_daemon_options() {
          mkdir -p $MOUNT_DIRECTORY/md0/$1
          chown $DAEMON_USER:$DAEMON_USER $MOUNT_DIRECTORY/md0/$1
        fi
-       DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0"
+       DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0/$1"
      fi
   else
      DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/${MOUNT_DIRS[$1]}"
