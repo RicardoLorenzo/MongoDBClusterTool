@@ -135,13 +135,6 @@ public class PuppetConfiguration {
                 .setStringProperty("source", "puppet:///files/puppet-mongodb-microshards.sh")
                 .setRequire(PuppetModule.TYPE_EXEC, "disk-format")
                 .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards"));
-        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/default/grub")
-                .setStringProperty("owner", "root")
-                .setStringProperty("group", "root")
-                .setProperty("mode", "644")
-                .setStringProperty("source", "puppet:///files/grub")
-                .setNotify(PuppetModule.TYPE_EXEC, "update-grub")
-                .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongod")
                 .setStringProperty("command", "/usr/sbin/update-rc.d -f mongod remove && /usr/sbin/service mongod stop")
                 .setNotify(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
@@ -150,22 +143,30 @@ public class PuppetConfiguration {
                 .setProperty("onlyif", "\\\"/usr/bin/test -e " + MONGODB_MOUNT_DIR + " -a 0 -eq \\$(ls " +
                         MONGODB_MOUNT_DIR + " | wc -l)\\\"")
                 .setStringProperty("command", "/usr/local/bin/puppet-disk-format")
+                .setNotify(PuppetModule.TYPE_SERVICE, "mongodb-microshards")
+                .setSubscribe(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_FILE, "/mnt/mongodb")
-                .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setProperty("onlyif", "\\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups | grep memory | awk '{ print $4 }')\\\"")
                 .setStringProperty("command", "/usr/bin/test 0")
+                .setNotify(PuppetModule.TYPE_EXEC, "disk-format")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "mongod")
-                .setRequire(PuppetModule.TYPE_PACKAGE, "cgroup-bin")
-                .setRequire(PuppetModule.TYPE_EXEC, "mongod"));
+                .setRequire(PuppetModule.TYPE_PACKAGE, "cgroup-bin"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb-microshards")
                 .setProperty("ensure", "running")
                 .setProperty("enable", "true")
+                .setSubscribe(PuppetModule.TYPE_EXEC, "disk-format")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongod")
-                .setRequire(PuppetModule.TYPE_EXEC, "disk-format")
                 .setRequire(PuppetModule.TYPE_FILE, "/etc/init.d/mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/default/grub")
+                .setStringProperty("owner", "root")
+                .setStringProperty("group", "root")
+                .setProperty("mode", "644")
+                .setStringProperty("source", "puppet:///files/grub")
+                .setNotify(PuppetModule.TYPE_EXEC, "update-grub")
+                .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_PACKAGE, "cgroup-bin")
                 .setProperty("ensure", "present"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "update-grub")

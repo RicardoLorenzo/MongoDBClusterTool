@@ -34,15 +34,17 @@ mountDisk() {
         udevadm test $(udevadm info -a -n ${DISK_DEV}) > /dev/null 2>&1
         local DISK_UUID=$(blkid -o export ${DISK_DEV} | grep '^UUID=')
         DISK_UUID=${DISK_UUID##*\=}
-        if [ -z "$(cat /etc/fstab | grep UUID=$DISK_UUID)" ]; then
-            echo "UUID=$DISK_UUID  $MOUNT_DIRECTORY/$DISK  $FSTYPE  defaults  0  0" >> /etc/fstab
-        fi
-        if ! [ -e "$MOUNT_DIRECTORY/$DISK" ]; then
-            mkdir -p $MOUNT_DIRECTORY/$DISK > /dev/null 2>&1
-        fi
-        mount $MOUNT_DIRECTORY/$DISK
-        if [ "$(stat -c %U $MOUNT_DIRECTORY/$DISK)" != "mongodb" ]; then
-            chown mongodb:mongodb $MOUNT_DIRECTORY/$DISK -R > /dev/null 2>&1
+        if [ -n "$DISK_UUID" ]; then
+            if [ -z "$(cat /etc/fstab | grep UUID=$DISK_UUID)" ]; then
+                echo "UUID=$DISK_UUID  $MOUNT_DIRECTORY/$DISK  $FSTYPE  defaults  0  0" >> /etc/fstab
+            fi
+            if ! [ -e "$MOUNT_DIRECTORY/$DISK" ]; then
+                mkdir -p $MOUNT_DIRECTORY/$DISK > /dev/null 2>&1
+            fi
+            mount $MOUNT_DIRECTORY/$DISK
+            if [ "$(stat -c %U $MOUNT_DIRECTORY/$DISK)" != "mongodb" ]; then
+                chown mongodb:mongodb $MOUNT_DIRECTORY/$DISK -R > /dev/null 2>&1
+            fi
         fi
     fi
 }
