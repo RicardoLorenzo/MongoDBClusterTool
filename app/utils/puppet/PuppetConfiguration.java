@@ -210,7 +210,7 @@ public class PuppetConfiguration {
                 .setNotify(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_KEY, "mongodb"));
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongodb-10gen")
-                .setStringProperty("command", "/usr/bin/apt-get install --force-yes mongodb-org-server mongodb-org-tools")
+                .setStringProperty("command", "/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_SOURCE, "mongodb"));
