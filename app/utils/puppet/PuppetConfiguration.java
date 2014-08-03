@@ -117,6 +117,11 @@ public class PuppetConfiguration {
                 .setStringProperty("group", "root")
                 .setProperty("mode", "644")
                 .setStringProperty("source", "puppet:///files/mongodb-shards.conf"));
+        shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/mnt/mongodb")
+                .setStringProperty("owner", "mongodb")
+                .setStringProperty("group", "mongodb")
+                .setProperty("mode", "755")
+                .setStringProperty("ensure", "directory"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
@@ -145,6 +150,7 @@ public class PuppetConfiguration {
                         MONGODB_MOUNT_DIR + " | wc -l)\\\"")
                 .setStringProperty("command", "/usr/local/bin/puppet-disk-format")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "mongod")
+                .setRequire(PuppetModule.TYPE_FILE, "/mnt/mongodb")
                 .setRequire(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
                 .setProperty("onlyif", "\\\"/usr/bin/test 1 -eq \\$(cat /proc/cgroups | grep memory | awk '{ print $4 }')\\\"")

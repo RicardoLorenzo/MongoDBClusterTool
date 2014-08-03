@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 MOUNT_DIRECTORY="/mnt/mongodb"
 RAID_TYPE="none"
 FS_TYPE="ext4"
@@ -25,7 +25,7 @@ mountDisk() {
     local DISK=$1
     local DISK_DEV=$1
     local FSTYPE=$2
-    if [ "md0" == "$DISK_DEV" ]; then
+    if [ "md0" = "$DISK_DEV" ]; then
         DISK_DEV=/dev/${DISK_DEV}
     else
         DISK_DEV=/dev/${DISK_DEV}1
@@ -93,7 +93,7 @@ formatDisks() {
             ;;
         btrfs)
             local DISKS=""
-            if [ "$RAID_TYPE" == "raid0" ]; then
+            if [ "$RAID_TYPE" = "raid0" ]; then
                 for DISK in $@; do
                     DISKS="/dev/${DISK}1 "
                 done
