@@ -251,7 +251,7 @@ public class PuppetConfiguration {
         return sb.toString();
     }
 
-    public static String getPuppetStartupScriptContent(String clusterName, String networkRange,
+    public static String getPuppetStartupScriptContent(String clusterName, String networkRange, Integer processes,
                                                        String diskRaid, String dataFileSystem) throws IOException {
         if(networkRange == null || networkRange.isEmpty()) {
             throw new IllegalArgumentException("incorrect network range");
@@ -359,6 +359,9 @@ public class PuppetConfiguration {
         sb.append("  echo \"MOUNT_DIRECTORY=\\\"");
         sb.append(MONGODB_MOUNT_DIR);
         sb.append("\\\"\n");
+        sb.append("PROCESSES=");
+        sb.append(processes);
+        sb.append("\n");
         if(diskRaid != null && !diskRaid.isEmpty()) {
             sb.append("RAID_TYPE=\\\"");
             sb.append(diskRaid.toLowerCase());
@@ -371,14 +374,7 @@ public class PuppetConfiguration {
         }
         sb.append("\" > ");
         sb.append(getPuppetFilesDirectory());
-        sb.append("/mongodb-shard-disks.conf\n");
-
-        /**
-         *
-         * TODO add the configuration file
-         */
-
-
+        sb.append("/mongodb-shards.conf\n");
         sb.append("\n  service puppetmaster restart\n");
 
         sb.append("}\n");

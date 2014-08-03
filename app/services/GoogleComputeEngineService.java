@@ -389,7 +389,7 @@ public class GoogleComputeEngineService {
             try {
                 client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), network,
                         rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
-                        ConfigurationService.generatePuppetMasterStartupScript(clusterName, networkName, diskRaid, dataFileSystem), true);
+                        ConfigurationService.generatePuppetMasterStartupScript(clusterName, networkName, processes, diskRaid, dataFileSystem), true);
             } catch(IOException e) {
                 throw new GoogleComputeEngineException(e);
             }

@@ -119,8 +119,8 @@ public class ConfigurationService {
         return name.toString();
     }
 
-    public static String generatePuppetMasterStartupScript(String clusterName, String networkName, String diskRaid,
-                                                           String dataFileSystem) throws IOException,
+    public static String generatePuppetMasterStartupScript(String clusterName, String networkName, Integer processes,
+                                                           String diskRaid, String dataFileSystem) throws IOException,
             GoogleComputeEngineException, GoogleCloudStorageException {
         checkGoogleAuthentication();
         if(bucketId == null || bucketId.isEmpty()) {
@@ -135,7 +135,7 @@ public class ConfigurationService {
          * the application upload the file to Google Storage and store the link in the metadata.
          */
         String puppetScriptContent = PuppetConfiguration.getPuppetStartupScriptContent(clusterName,
-                googleComputeService.getNetworkRange(networkName), diskRaid, dataFileSystem);
+                googleComputeService.getNetworkRange(networkName), processes, diskRaid, dataFileSystem);
         return googleStorageClient.putFile(bucketId, scriptPath.toString(), "plain/text", puppetScriptContent.getBytes());
     }
 

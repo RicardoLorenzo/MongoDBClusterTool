@@ -16,6 +16,7 @@
 . /lib/lsb/init-functions
 
 MOUNT_DIRECTORY="/mnt/mongodb"
+PROCESSES=1
 DESC="MongoDB database"
 DAEMON=/usr/bin/mongod
 DAEMON_USER=mongodb
@@ -67,21 +68,31 @@ get_daemon_options() {
   if [ -z "$1" ]; then
     return
   fi
+
+  local INDEX=0
+  declare -a MOUNT_DIRS;
+  for DIR in $(ls $MOUNT_DIRECTORY); do
+    MOUNT_DIRS[$INDEX]=$DIR
+    INDEX=$(( $INDEX + 1 ))
+  done
+
   DAEMON_OPTS="--port $DAEMON_PORT"
-  DAEMON_OPTS="$DAEMON_OPTS --dbpath /mnt/$1"
+  if [ "$RAID_TYPE" == "raid0" ]; then
+     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/md0"
+  else
+     DAEMON_OPTS="$DAEMON_OPTS --dbpath $MOUNT_DIRECTORY/$MOUNT_DIRS[$1]"
+  fi
   DAEMON_OPTS="$DAEMON_OPTS --logpath /tmp/mongodb-shard-$1.log"
   DAEMON_OPTS="$DAEMON_OPTS --shardsvr"
-  #DAEMON_OPTS="$DAEMON_OPTS --journal"
+  DAEMON_OPTS="$DAEMON_OPTS --journal"
   DAEMON_OPTS="$DAEMON_OPTS --directoryperdb --logappend"
+
+
 
   DAEMON_PORT=$(( $DAEMON_PORT + 1 ))
 }
 
 configure_cgroups() {
-  if [ -z "$1" ]; then
-    return
-  fi
-
   if ! [ -e "/cgroups" ]; then
     mkdir -p /cgroups
   fi
@@ -90,7 +101,6 @@ configure_cgroups() {
     exit 1
   fi
 
-  local SHARDS=$#
   # Getting the memory size in GB
   MS=$(cat /proc/meminfo | grep MemTotal)
   MS=${MS##*\:}
@@ -99,7 +109,7 @@ configure_cgroups() {
 
   # Getting the memory per shard
   MS=$(( $MS - 1 ))
-  MS=$(( $MS / $SHARDS  ))
+  MS=$(( $MS / $PROCESSES  ))
 
   MS=$(( $MS * 1024 * 1024 ))
 
@@ -107,7 +117,7 @@ configure_cgroups() {
   local PC=$(cat /proc/cpuinfo | grep "^processor" | wc -l)
 
   # Getting the number of processors per shard
-  local SC=$(( 1024 / $SHARDS ))
+  local SC=$(( 1024 / $PROCESSES ))
   SC=${SC%.*}
   if [ "$SC" -lt 1 ]; then
     SC=1
@@ -148,8 +158,8 @@ mount {
 }
 "
   echo "" > /etc/cgconfig.conf
-  for DISK in $@; do
-    echo -n "group mongodb-$DISK " >> /etc/cgconfig.conf
+  for PROCESS in $(seq 1 1 $PROCESSES); do
+    echo -n "group mongodb-$PROCESS " >> /etc/cgconfig.conf
     echo "$CGROUPS_CONF" >> /etc/cgconfig.conf
   done
   umount -t cgroup -a > /dev/null 2>&1
@@ -157,16 +167,15 @@ mount {
 }
 
 start_microshards() {
-  local DISKS="$(get_disks)"
-  configure_cgroups $DISKS
-  for DISK in $DISKS; do
-    local PIDFILE=/var/run/mongod_$DISK.pid
+  configure_cgroups
+  for PROCESS in $(seq 1 1 $PROCESSES); do
+    local PIDFILE=/var/run/mongod_$PROCESS.pid
     if ! [ -e "$PIDFILE" ]; then
       echo "$RANDOM" > $PIDFILE
     fi
-    log_daemon_msg "Starting $DESC [$DISK]" "mongod"
-    get_daemon_options $DISK
-    DAEMON_OPTS="-g *:mongodb-$DISK $DAEMON $DAEMON_OPTS"
+    log_daemon_msg "Starting $DESC [$PROCESS]" "mongod"
+    get_daemon_options $PROCESS
+    DAEMON_OPTS="-g *:mongodb-$PROCESS $DAEMON $DAEMON_OPTS"
     start-stop-daemon --start --background --chuid $DAEMON_USER --pidfile $PIDFILE --exec /usr/bin/cgexec -- $DAEMON_OPTS
     log_end_msg $?
     sleep 1
@@ -175,7 +184,7 @@ start_microshards() {
       echo $PID > $PIDFILE
     else
       echo "ERROR: Not started"
-      tail -100 /tmp/mongodb-shard-$DISK.log
+      tail -100 /tmp/mongodb-shard-$PROCESS.log
       exit 1
     fi
   done
