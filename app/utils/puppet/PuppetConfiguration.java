@@ -254,9 +254,8 @@ public class PuppetConfiguration {
         sb.append(serverName);
         sb.append("\" > ");
         sb.append(PUPPET_HOME_DIR);
-        sb.append("/auth.conf\n\npuppetd --test --waitforcert 60 --server ");
-        sb.append(serverName);
-        sb.append("\nservice puppet restart\n");
+        sb.append("/auth.conf\n");
+        sb.append("service puppet stop\npuppet agent --test --waitforcert 60\nsleep 1\nservice puppet start\n");
         return sb.toString();
     }
 
