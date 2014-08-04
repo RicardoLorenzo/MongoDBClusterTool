@@ -350,8 +350,8 @@ public class PuppetConfiguration {
         sb.append("\" > ");
         sb.append(getPuppetFilesDirectory());
         sb.append("/grub\n");
-        sb.append("  echo \"configsvr=true\ndbpath=/var/lib/mongodb\nlogpath=/var/log/mongodb/mongodb.log\n");
-        sb.append("logappend=true\n\" > ");
+        sb.append("  echo \"port = 27019,configsvr=true\ndbpath=/var/lib/mongodb\n");
+        sb.append("logpath=/var/log/mongodb/mongodb.log\nlogappend=true\n\" > ");
         sb.append(getPuppetFilesDirectory());
         sb.append("/mongodb-config-server.conf\n");
         sb.append("  echo \"");

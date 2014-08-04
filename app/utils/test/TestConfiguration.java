@@ -108,9 +108,10 @@ public class TestConfiguration {
                 configdb.append(",");
             }
             configdb.append(confNode);
+            configdb.append(":27019");
         }
         sb.append(configdb.toString());
-        sb.append("\nlogpath = /var/log/mongos.log\nlogappend = yes\n");
+        sb.append("\nlogpath = /var/log/mongos.log\nlogappend = yes\nfork = yes\n");
         sb.append("\" > /etc/mongos.conf\n");
         sb.append("fi\n");
 
@@ -131,6 +132,7 @@ public class TestConfiguration {
         sb.append("\" > /etc/mongos.js\n");
         sb.append(" mongo /etc/mongos.js\n");
         sb.append("fi\n");
+        sb.append("mongos -f /etc/mongos.conf\n");
         return sb.toString();
     }
 
