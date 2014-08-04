@@ -298,6 +298,27 @@ public class GoogleComputeEngineService {
         return null;
     }
 
+    public String getJumpServerPublicAddress() throws GoogleComputeEngineException {
+        checkAuthentication();
+        String clusterName = ConfigurationService.getClusterName();
+        StringBuilder instance_name = new StringBuilder();
+        instance_name.append(clusterName);
+        instance_name.append("-");
+        instance_name.append(ConfigurationService.NODE_NAME_TEST_JUMP);
+        Instance instance = client.getInstance(instance_name.toString());
+        if(instance != null) {
+            for(NetworkInterface i : instance.getNetworkInterfaces()) {
+                List<AccessConfig> accessConfigList = i.getAccessConfigs();
+                if(accessConfigList != null) {
+                    for(AccessConfig c : accessConfigList) {
+                        return c.getNatIP();
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public String getNetworkRange(String networkName) throws GoogleComputeEngineException{
         Network n = client.getNetwork(networkName);
         return n.getIPv4Range();

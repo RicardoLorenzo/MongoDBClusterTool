@@ -114,6 +114,7 @@ public class TestConfiguration {
         sb.append("\nlogpath = /var/log/mongos.log\nlogappend = yes\nfork = yes\n");
         sb.append("\" > /etc/mongos.conf\n");
         sb.append("fi\n");
+        sb.append("mongos -f /etc/mongos.conf\n");
 
         /**
          * Shard cluster configuration
@@ -132,7 +133,6 @@ public class TestConfiguration {
         sb.append("\" > /etc/mongos.js\n");
         sb.append(" mongo /etc/mongos.js\n");
         sb.append("fi\n");
-        sb.append("mongos -f /etc/mongos.conf\n");
         return sb.toString();
     }
 

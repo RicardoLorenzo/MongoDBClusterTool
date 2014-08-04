@@ -142,16 +142,16 @@ public class RunTestForm {
         if(phase == null || phase.isEmpty()) {
             errors.add(new ValidationError("phase", "Incorrect phase"));
         }
-        if(threads == null || threads > 0) {
+        if(threads == null || threads <= 0) {
             errors.add(new ValidationError("threads", "Incorrect number of threads"));
         }
-        if(bulkCount == null || bulkCount > 1) {
+        if(bulkCount == null || bulkCount < 1) {
             errors.add(new ValidationError("bulkCount", "Bulk count must be greater than 1"));
         }
-        if(recordCount == null || recordCount > 1) {
+        if(recordCount == null || recordCount < 1) {
             errors.add(new ValidationError("recordCount", "Record count must be greater than 1"));
         }
-        if(operationCount == null || operationCount > 1) {
+        if(operationCount == null || operationCount < 1) {
             errors.add(new ValidationError("operationCount", "Operation count must be greater than 1"));
         }
         if(readProportion == null || readProportion > 1) {

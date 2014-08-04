@@ -202,17 +202,16 @@ public class TestApplication extends Controller {
                 try {
                     TestRunner runner =  new YCSBTestRunner(workload, runTest.getThreads(), runTest.getBulkCount());
 
-                    List<String> jumpNodesAddresses = googleService.getInstancesNetworkAddresses(
-                            Arrays.asList(ConfigurationService.NODE_TAG_TEST_JUMP));
+                    String jumpServerAddress = googleService.getJumpServerPublicAddress();
                     List<String> testNodesAddresses = googleService.getInstancesNetworkAddresses(
                             Arrays.asList(ConfigurationService.NODE_TAG_TEST));
-                    if(jumpNodesAddresses == null || jumpNodesAddresses.isEmpty()) {
+                    if(jumpServerAddress == null || jumpServerAddress.isEmpty()) {
                         throw new TestException("No jump server found. Have you the test nodes created?");
                     }
                     if(testNodesAddresses == null || testNodesAddresses.isEmpty()) {
-                        throw new TestException("No test nodes found. Something weird is happening, please recreate the test nodes");
+                        throw new TestException("No test nodes found. Something weird is happening, please create again the test nodes");
                     }
-                    runner.runTest(jumpNodesAddresses.get(0), testNodesAddresses);
+                    runner.runTest(jumpServerAddress, testNodesAddresses);
                     flash("success", "Test run launched! Please check the outcome in the results page.");
                 } catch(GoogleComputeEngineException e) {
                     return ok(views.html.error.render(e.getMessage()));

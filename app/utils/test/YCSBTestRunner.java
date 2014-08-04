@@ -29,6 +29,8 @@ public class YCSBTestRunner extends TestRunner {
     public YCSBTestRunner(YCSBWorkload workload, Integer threads, Integer bulkCount) {
         super();
         this.workload = workload;
+        this.threads = threads;
+        this.bulkCount = bulkCount;
     }
 
     @Override
@@ -44,32 +46,55 @@ public class YCSBTestRunner extends TestRunner {
         return t;
     }
 
+    private static SSHClient connect(String address) throws SSHException, IOException {
+        if(!hasAttributeObject("ssh-client")) {
+            SSHClient client = new SSHClient(address, 22);
+            client.connect(ConfigurationService.TEST_USER);
+            setAttributeObject("ssh-client", client);
+            return client;
+        } else {
+            return SSHClient.class.cast(getAttributeObject("ssh-client"));
+        }
+    }
+
+    private static void disconnect() {
+        if(hasAttributeObject("ssh-client")) {
+            SSHClient.class.cast(getAttributeObject("ssh-client")).disconnect();
+        }
+    }
+
     @Override
-    protected void preRunTask(String jumpAddress, List<String> testNodeAddresses) throws TestException {
+    protected void finalizeTasks() {
+        disconnect();
+    }
+
+
+    @Override
+    protected void initializeTasks(String jumpAddress, List<String> testNodeAddresses) throws TestException {
         Random r = new Random();
         String randomTestNode = testNodeAddresses.get(r.nextInt(testNodeAddresses.size() - 1));
         try {
-            SSHClient client = new SSHClient(jumpAddress, 22);
+            SSHClient client = connect(jumpAddress);
             File f = File.createTempFile("init-test", ".js");
             try {
                 FilePermissions permissions = new FilePermissions(FilePermissions.READ + FilePermissions.WRITE,
                         FilePermissions.READ, FilePermissions.READ);
-                client.connect(ConfigurationService.TEST_USER);
                 FileUtils.writeFile(f, this.workload);
-                client.forwardConnect(randomTestNode, ConfigurationService.TEST_USER, 22);
                 StringBuilder sb = new StringBuilder();
                 sb.append("db = db.getSiblingDB(\"ycsb\");\n");
                 sb.append("db.dropDatabase()");
                 sb.append("sh.enableSharding(\"ycsb\")");
                 sb.append("sh.shardCollection(\"ycsb.usertable\", { \"_id\": \"hashed\" })");
                 FileUtils.writeFile(f, sb.toString());
+                System.out.println("initialize - Connecting to: " + randomTestNode);
+                client.forwardConnect(randomTestNode, ConfigurationService.TEST_USER, 22);
                 client.sendForwardFile(randomTestNode, f, "/tmp/init-test.js", permissions);
                 client.sendForwardCommand(randomTestNode, "mongo /tmp/init-test.js");
             } catch(FileLockException e) {
                 throw new TestException(e);
             } finally {
                 f.delete();
-                client.disconnect();
+                //client.forwardDisconnect(randomTestNode);
             }
         } catch(SSHException e) {
             throw new TestException(e);
@@ -83,23 +108,28 @@ public class YCSBTestRunner extends TestRunner {
         try {
             FilePermissions permissions = new FilePermissions(FilePermissions.READ + FilePermissions.WRITE,
                     FilePermissions.READ, FilePermissions.READ);
-            SSHClient client = new SSHClient(jumpAddress, 22);
+            SSHClient client = connect(jumpAddress);
             File f = File.createTempFile("workload", ".test");
             try {
-                client.connect(ConfigurationService.TEST_USER);
                 FileUtils.writeFile(f, this.workload);
+                System.out.println("preRun - Connecting to: " + testNodeAddress);
                 client.forwardConnect(testNodeAddress, ConfigurationService.TEST_USER, 22);
                 client.sendForwardFile(testNodeAddress, f, WORKLOAD_FILE_PATH, permissions);
             } catch(FileLockException e) {
                 throw new TestException(e);
             } finally {
                 f.delete();
-                client.disconnect();
+                //client.forwardDisconnect(testNodeAddress);
             }
         } catch(SSHException e) {
             throw new TestException(e);
         } catch(IOException e) {
             throw new TestException(e);
         }
+    }
+
+    @Override
+    protected void postRunTask() {
+        // none
     }
 }
