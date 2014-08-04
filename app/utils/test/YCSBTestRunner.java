@@ -1,6 +1,5 @@
 package utils.test;
 
-import org.springframework.stereotype.Component;
 import services.ConfigurationService;
 import utils.file.FileLockException;
 import utils.file.FileUtils;
@@ -17,7 +16,6 @@ import java.util.Random;
 /**
  * Created by ricardolorenzo on 01/08/2014.
  */
-@Component(value = "test-runner")
 public class YCSBTestRunner extends TestRunner {
     /**
      * Every node contain his own mongos process

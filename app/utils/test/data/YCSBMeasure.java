@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class YCSBMeasure implements Measure {
     private String nodeAddress;
+    private Long time;
     private TimeUnit timeUnit;
     private Map<Integer, Float> operations;
 
@@ -21,6 +22,11 @@ public class YCSBMeasure implements Measure {
     @Override
     public String getNodeAddress() {
         return nodeAddress;
+    }
+
+    @Override
+    public Long getTime() {
+        return time;
     }
 
     @Override
@@ -43,6 +49,11 @@ public class YCSBMeasure implements Measure {
     }
 
     @Override
+    public void setTime(Long time) {
+        this.time = time;
+    }
+
+    @Override
     public void setTimeUnit(TimeUnit timeUnit) {
         this.timeUnit = timeUnit;
     }
@@ -53,26 +64,52 @@ public class YCSBMeasure implements Measure {
     }
 
     public static YCSBMeasure parseMeasure(String nodeAddress, String data) {
-        if(!data.startsWith("[") || !data.contains("]")) {
+        if(data == null || data.isEmpty() || !data.startsWith("[") || !data.contains("]")) {
             return null;
         }
+        data = data.trim();
         if(data.contains("\n")) {
             data = data.substring(data.indexOf("\n"));
         }
 
         Float average = 0F;
+        Long second = 0L;
         YCSBMeasure measure = new YCSBMeasure(nodeAddress);
-        String result = data.substring(data.indexOf("]" + 1)).trim();
+        String result = data.substring(data.indexOf("]") + 1);
         if(result.startsWith(",")) {
             result = result.substring(1, result.length());
         }
         if(result.contains(",")) {
+            String[] tokens = result.split(",");
+            if(tokens[1].trim().matches("^\\d+(\\.\\d)?$")) {
+                try {
+                    average = Float.parseFloat(tokens[1].trim());
+                } catch(NumberFormatException e) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+            if(tokens[0].trim().matches("^\\d+(\\.\\d)?$")) {
+                try {
+                    second = Long.parseLong(tokens[0].trim());
+                } catch(NumberFormatException e) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+        } else if(result.matches("[0-9.]+")) {
             try {
-                average = Float.parseFloat(result.substring(result.indexOf(",") + 1));
+                average = Float.parseFloat(result);
             } catch(NumberFormatException e) {
                 return null;
             }
+        } else {
+            return null;
         }
+
+        measure.setTime(second);
         measure.setTimeUnit(TimeUnit.SECONDS);
         switch(data.substring(1, data.indexOf("]"))) {
             case "INSERT":
@@ -90,6 +127,8 @@ public class YCSBMeasure implements Measure {
             case "READ":
                 measure.setTotalOperationsByType(Measure.READ, average);
                 break;
+            default:
+                return null;
         }
         return measure;
     }

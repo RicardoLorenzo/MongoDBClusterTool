@@ -21,29 +21,19 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.springframework.beans.factory.annotation.Qualifier;
 import play.libs.Json;
 import play.mvc.WebSocket;
-import utils.test.TestRunner;
 import utils.test.data.Measure;
-
-import javax.inject.Inject;
 
 /**
  * Created by ricardolorenzo on 18/07/2014.
  */
 public class TestMeasureConnection extends UntypedActor {
-    private static TestRunner runner;
     private final WebSocket.Out<JsonNode> out;
     LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 
     public TestMeasureConnection(WebSocket.Out<JsonNode> out) {
         this.out = out;
-    }
-
-    @Inject
-    void setTestRunner(@Qualifier("test-runner") TestRunner runner) {
-        TestMeasureConnection.runner = runner;
     }
 
     @Override
@@ -58,6 +48,7 @@ public class TestMeasureConnection extends UntypedActor {
             measureData.put("delete", measure.getOperationsAverageByType(Measure.DELETE));
             measureData.put("scan", measure.getOperationsAverageByType(Measure.SCAN));
             measureData.put("read", measure.getOperationsAverageByType(Measure.READ));
+            measureData.put("time", measure.getTime());
             measureData.put("time-unit", measure.getTimeUnit().toString());
             //log.info("Received measure: " + measure.getNodeAddress(), measureData);
             out.write(measureData);

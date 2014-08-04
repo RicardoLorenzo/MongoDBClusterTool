@@ -30,6 +30,7 @@ GET        /test/run                      controllers.TestApplication.runTest()
 POST       /test/run                      controllers.TestApplication.runTestPost()
 GET        /test/deleteNodes              controllers.TestApplication.deleteTestNodes()
 POST       /test/deleteNodes              controllers.TestApplication.deleteTestNodesPost()
+GET        /test/results                  controllers.TestApplication.testResults()
 GET        /test/testPrivateKey           controllers.TestApplication.getTestNodesPrivateKey()
 
 GET        /test/socket/measurements      controllers.TestApplication.testMeasurements()

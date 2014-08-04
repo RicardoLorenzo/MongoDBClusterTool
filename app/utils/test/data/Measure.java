@@ -12,14 +12,17 @@ public interface Measure {
     public final static int DELETE = 4;
     public final static int READ = 5;
 
-
     public String getNodeAddress();
+
+    public Long getTime();
 
     public TimeUnit getTimeUnit();
 
     public Float getOperationsAverageByType(int type);
 
     public void setNodeAddress(String address);
+
+    public void setTime(Long time);
 
     public void setTimeUnit(TimeUnit timeUnit);
 

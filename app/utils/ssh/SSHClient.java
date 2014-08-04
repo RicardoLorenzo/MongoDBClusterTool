@@ -477,7 +477,6 @@ public class SSHClient {
                 }
                 sb.append(tok);
             }
-            System.out.println("SSH Command: " + sb.toString());
             Channel channel = session.openChannel("exec");
             ChannelExec.class.cast(channel).setCommand(sb.toString());
             channel.setOutputStream(null);

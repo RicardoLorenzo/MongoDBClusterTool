@@ -1,6 +1,6 @@
 
 @main(title = "MongoDB") {
-<script src='@routes.Assets.at("javascripts/measure.js")'></script>
+<script src='@routes.Assets.at("javascripts/measurement.js")'></script>
 <span id="test-measurement" data-ws-url="@request.host@routes.TestApplication.testMeasurements()"></span>
 
 <div class="container">
@@ -12,21 +12,14 @@
             </h4>
         </div>
         <div class="panel-body">
-            <div class="panel panel-primary">
-                <div class="panel-heading">
-                    <h4 class="panel-title">
-                        <i class="icon-leaf icon-white"></i>
-                        Operations
-                    </h4>
-                </div>
-                <div class="panel-body">
-
-
-
-
-                </div>
+            <div style="width: 98%">
+                <canvas id="measurements"></canvas>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+   getMeasurements();
+</script>
 }

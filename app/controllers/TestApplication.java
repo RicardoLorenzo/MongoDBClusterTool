@@ -52,15 +52,9 @@ import java.util.*;
 
 @org.springframework.stereotype.Controller
 public class TestApplication extends Controller {
-    private static TestRunner runner;
     private static GoogleAuthenticationService googleAuth;
     private static ConfigurationService configurationService;
     private static GoogleComputeEngineService googleService;
-
-    @Inject
-    void setTestRunner(@Qualifier("test-runner") TestRunner runner) {
-        TestApplication.runner = runner;
-    }
 
     @Inject
     void setGoogleService(@Qualifier("gauth-service") GoogleAuthenticationService googleAuth) {
@@ -166,6 +160,20 @@ public class TestApplication extends Controller {
             public void onReady(final In<JsonNode> in, final Out<JsonNode> out) {
                 final ActorRef measureActor = Akka.system().actorOf(Props.create(TestMeasureConnection.class, out));
 
+                in.onMessage(new F.Callback<JsonNode>() {
+                    @Override
+                    public void invoke(JsonNode jsonNode) throws Throwable {
+                        if(jsonNode.has("action") && "retrieve".equals(jsonNode.get("action").textValue())) {
+                            final ActorRef measureActor = Akka.system().actorOf(Props.create(TestMeasureConnection.class, out));
+                            Inbox inbox = Inbox.create(Akka.system());
+                            for(Measure m = TestRunner.getMeasureFromQueue(); m != null;
+                                m = TestRunner.getMeasureFromQueue()) {
+                                inbox.send(measureActor, m);
+                            }
+                        }
+                    }
+                });
+
                 in.onClose(new F.Callback0() {
                     @Override
                     public void invoke() throws Throwable {
@@ -173,17 +181,7 @@ public class TestApplication extends Controller {
                     }
                 });
 
-                Inbox inbox = Inbox.create(Akka.system());
-                while(TestRunner.hasTestNodesRunning()) {
-                    Measure m = TestRunner.getMeasureFromQueue();
-                    if(m != null) {
-                        inbox.send(measureActor, m);
-                    } else {
-                        try {
-                            Thread.sleep(100);
-                        } catch(InterruptedException e) {}
-                    }
-                }
+
             }
         };
     }
@@ -202,8 +200,8 @@ public class TestApplication extends Controller {
 
             RunTestForm runTest = new RunTestForm();
             runTest.setThreads(1);
-            runTest.setRecordCount(1000);
-            runTest.setOperationCount(1000);
+            runTest.setRecordCount(100000);
+            runTest.setOperationCount(100000);
             runTest.setBulkCount(100);
             runTest.setReadProportion(0.8F);
             runTest.setUpdateProportion(0.2F);
@@ -214,6 +212,20 @@ public class TestApplication extends Controller {
                     formData,
                     phases
             ));
+        } catch(GoogleComputeEngineException e) {
+            return ok(views.html.error.render(e.getMessage()));
+        }
+    }
+
+    public static Result testResults() {
+        String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
+        try {
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
+            if(result != null) {
+                return redirect(result);
+            }
+
+            return ok(views.html.test_results.render());
         } catch(GoogleComputeEngineException e) {
             return ok(views.html.error.render(e.getMessage()));
         }
