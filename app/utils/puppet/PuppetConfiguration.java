@@ -232,6 +232,9 @@ public class PuppetConfiguration {
         sb.append("\nsetProxy ");
         sb.append(serverName);
         sb.append("\ncheckConnection http://http.debian.net/debian/dists/wheezy/Release.gpg\n");
+        sb.append("installPackage mdadm\n");
+        sb.append("installPackage xfsprogs\n");
+        sb.append("installPackage btrfs-tools\n");
         sb.append("installPackage puppet\n");
         sb.append("echo \"[main]\n");
         sb.append("logdir=/var/log/puppet\nvardir=/var/lib/puppet\nssldir=/var/lib/puppet/ssl\n");
@@ -254,9 +257,6 @@ public class PuppetConfiguration {
         sb.append("/auth.conf\n\npuppetd --test --waitforcert 60 --server ");
         sb.append(serverName);
         sb.append("\nservice puppet restart\n");
-        sb.append("installPackage mdadm\n");
-        sb.append("installPackage xfsprogs\n");
-        sb.append("installPackage btrfs-tools\n");
         return sb.toString();
     }
 
