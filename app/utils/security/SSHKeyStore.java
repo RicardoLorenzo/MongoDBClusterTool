@@ -41,7 +41,7 @@ public class SSHKeyStore {
         if(store == null) {
             File  f = getStoreFile();
             if(f.exists()) {
-                store = ConcurrentMap.class.cast(FileUtils.readObject(f));
+                store = ConcurrentMap.class.cast(FileUtils.readObjectFile(f));
             } else {
                 store = new ConcurrentHashMap<>();
             }
@@ -67,7 +67,7 @@ public class SSHKeyStore {
     private void store() throws GoogleComputeEngineException {
         File f = getStoreFile();
         try {
-            FileUtils.writeFile(f, store);
+            FileUtils.writeObjectFile(f, store);
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot persist refresh-token on file [" + f.getAbsolutePath() + "] - " + e.getMessage());
         } catch(FileLockException e) {

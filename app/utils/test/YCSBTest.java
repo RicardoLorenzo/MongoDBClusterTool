@@ -4,8 +4,6 @@ package utils.test;
  * Created by ricardolorenzo on 31/07/2014.
  */
 public class YCSBTest implements Test {
-    public static final int PHASE_LOAD = 1;
-    public static final int PHASE_RUN = 2;
     private Integer phase;
     private String binaryFile;
     private String workingDirectory;
@@ -15,9 +13,11 @@ public class YCSBTest implements Test {
     private String workloadFilePath;
     private Integer bulkSize;
 
-    public YCSBTest(String binaryDirectory, String binaryFile, String remoteWorloadFilePath, Integer threads,
-                    Integer bulkSize) {
-        setPhase(PHASE_RUN);
+    public YCSBTest(String binaryDirectory, String binaryFile, Integer phase, String remoteWorloadFilePath, Integer threads,
+                    Integer bulkSize) throws TestException {
+        setPhase(phase);
+        setBinaryDirectory(binaryDirectory);
+        setBinaryFile(binaryFile);
         setWorkloadFilePath(remoteWorloadFilePath);
         setThreads(threads);
         setBulkSize(bulkSize);
@@ -38,8 +38,9 @@ public class YCSBTest implements Test {
                 sb.append("run");
                 break;
         }
-        sb.append(" -P ");
+        sb.append(" mongodb -P ");
         sb.append(workloadFilePath);
+        sb.append(" -p measurementtype=timeseries");
         if(threads > 1) {
             sb.append(" -threads ");
             sb.append(threads);
@@ -47,8 +48,8 @@ public class YCSBTest implements Test {
         sb.append(" -p mongodb.url=");
         sb.append(mongoDbUrl);
         if(bulkSize > 1) {
-            sb.append(" -threads ");
-            sb.append(threads);
+            sb.append(" -bulk ");
+            sb.append(bulkSize);
         }
         return sb.toString();
     }
@@ -99,11 +100,19 @@ public class YCSBTest implements Test {
         this.mongoDbUrl = mongoDbUrl;
     }
 
+    @Override
     public Integer getPhase() {
         return phase;
     }
 
-    public void setPhase(Integer phase) {
+    public void setPhase(Integer phase) throws TestException {
+        switch(phase) {
+            case PHASE_LOAD:
+            case PHASE_RUN:
+                break;
+            default:
+                throw new TestException("invalid phase");
+        }
         this.phase = phase;
     }
 

@@ -16,12 +16,6 @@ public class YCSBTestNodeRunner extends TestNodeRunner {
 
     @Override
     protected Measure getMeasure(String line) {
-        Measure m = new YCSBMeasure(getNodeAddress());
-        /**
-         * TODO process the line
-         */
-        System.out.println("Line-for-parsing: " + line);
-        m.setTotalOperationsByType(Measure.INSERT, 1L);
-        return m;
+        return YCSBMeasure.parseMeasure(getNodeAddress(), line);
     }
 }

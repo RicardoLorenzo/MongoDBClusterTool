@@ -13,7 +13,7 @@ public abstract class TestRunner {
     private static Map<String, Thread> testThreads = new HashMap<>();
     private static Map<String, Object> attributeObjects = new HashMap<>();
 
-    protected abstract Test getTest();
+    protected abstract Test getTest(Integer testPhase) throws TestException;
 
     protected abstract void finalizeTasks();
 
@@ -37,18 +37,29 @@ public abstract class TestRunner {
         return attributeObjects.containsKey(name);
     }
 
-    protected abstract void initializeTasks(String jumpAddress, List<String> nodeAddresses) throws TestException;
+    public static boolean hasTestNodesRunning() {
+        for(Map.Entry<String, Boolean> e : getTestNodesStatuses().entrySet()) {
+            if(e.getValue()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected abstract void initializeTasks(Integer phase, String jumpAddress, List<String> nodeAddresses)
+            throws TestException;
 
     protected abstract void preRunTask(String jumpAddress, String testNodeAddress) throws TestException;
 
-    public void runTest(String jumpAddress, List<String> testNodeAddresses) throws TestException {
+    public void runTest(Integer phase, String jumpAddress, List<String> testNodeAddresses) throws TestException {
         try {
-            initializeTasks(jumpAddress, testNodeAddresses);
+            initializeTasks(phase, jumpAddress, testNodeAddresses);
             for(String testNodeAddress : testNodeAddresses) {
                 try {
                     preRunTask(jumpAddress, testNodeAddress);
-                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest());
+                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest(phase));
                     Thread t = new Thread(runner);
+                    t.setName(testNodeAddress);
                     testThreads.put(testNodeAddress, t);
                     t.start();
                 } catch(TestException e) {

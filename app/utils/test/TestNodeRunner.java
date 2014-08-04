@@ -1,5 +1,7 @@
 package utils.test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import services.ConfigurationService;
 import utils.ssh.SSHClient;
 import utils.ssh.SSHException;
@@ -12,6 +14,7 @@ import java.util.Queue;
  * Created by ricardolorenzo on 31/07/2014.
  */
 public abstract class TestNodeRunner implements Runnable {
+    private static Logger log = LoggerFactory.getLogger(TestNodeRunner.class);
     protected Queue<Measure> measurementQueue;
     private final String jumpAddress;
     private final String nodeAddress;
@@ -33,18 +36,36 @@ public abstract class TestNodeRunner implements Runnable {
         try {
             SSHClient client = new SSHClient(jumpAddress, 22);
             client.connect(ConfigurationService.TEST_USER);
-            client.forwardConnect(nodeAddress, ConfigurationService.TEST_USER, 22);
-            client.sendPipedCommand(nodeAddress, systemCommand);
-            for(String line = client.readForwardPipedCommandOutputLine(nodeAddress);
-                line != null && client.forwardPipedCommandOutputAvailable();
-                line = client.readForwardPipedCommandOutputLine(nodeAddress)) {
-                measurementQueue.add(getMeasure(line));
+            try {
+                client.forwardConnect(nodeAddress, ConfigurationService.TEST_USER, 22);
+                client.sendForwardPipedCommand(nodeAddress, systemCommand);
+                for(String line = client.readForwardPipedCommandOutputLine(nodeAddress); line != null;
+                    line = client.readForwardPipedCommandOutputLine(nodeAddress)) {
+                    Measure m = getMeasure(line);
+                    if(m != null) {
+                        measurementQueue.add(m);
+                    }
+                }
+                client.terminateForwardPipedCommand(nodeAddress);
+                log.info("[" + Thread.currentThread().getName() + "] - process finished");
+                System.out.println("INFO: [" + Thread.currentThread().getName() + "] - process finished");
+            } catch(SSHException e) {
+                log.error("[" + Thread.currentThread().getName() + "] - " + nodeAddress + " connection: " +
+                        e.getMessage());
+            } catch(IOException e) {
+                log.error("[" + Thread.currentThread().getName() + "] - " + nodeAddress + " input/output: " +
+                        e.getMessage());
+            } catch(Throwable e) {
+                log.error("[" + Thread.currentThread().getName() + "] - " + nodeAddress + "\n" +
+                        e.toString());
+            } finally {
+                client.terminateForwardPipedCommand(nodeAddress);
+                client.disconnect();
             }
-            client.terminateForwardPipedCommand(nodeAddress);
-        } catch(SSHException e) {
-            // TODO do something here
         } catch(IOException e) {
-            // TODO do something here
+            log.error("[" + Thread.currentThread().getName() + "] - " + e.getMessage());
+        } catch(SSHException e) {
+            log.error("[" + Thread.currentThread().getName() + "] - cannot connect to the jump server: " + jumpAddress);
         }
     }
 

@@ -165,7 +165,7 @@ public class FileUtils {
         return os.toByteArray();
     }
 
-    public static Object readObject(final File file) throws IOException, ClassNotFoundException {
+    public static Object readObjectFile(final File file) throws IOException, ClassNotFoundException {
         ObjectInputStream is = null;
         try {
             is = new ObjectInputStream(new FileInputStream(file));
@@ -190,7 +190,7 @@ public class FileUtils {
         return false;
     }
 
-    public static boolean writeFile(final File file, final Object object) throws IOException, FileLockException {
+    public static boolean writeObjectFile(final File file, final Object object) throws IOException, FileLockException {
         if(object == null) {
             return false;
         }

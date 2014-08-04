@@ -168,7 +168,7 @@ public class IOStreamUtils {
         return data;
     }
 
-    public static final byte[] readUntilDataIsFound(final InputStream is, final byte[] data) throws IOException {
+    public static final byte[] readUntilDataIsFound(final InputStream is, final byte[] data, Long maximumLength) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         while(true) {
             int offset = 0;
@@ -179,6 +179,12 @@ public class IOStreamUtils {
                     return out.toByteArray();
                 }
                 c = is.read();
+                if(out.size() >= maximumLength) {
+                    return out.toByteArray();
+                }
+            }
+            if(out.size() >= maximumLength) {
+                return out.toByteArray();
             }
         }
     }

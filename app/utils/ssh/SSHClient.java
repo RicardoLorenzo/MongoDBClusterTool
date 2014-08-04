@@ -42,13 +42,15 @@ public class SSHClient {
     private Map<String, Session> forwardSessions;
     private Channel pipedChannel;
     private Map<String, Channel> forwardPipedChannels;
-    private BufferedReader pipedReader;
-    private Map<String, BufferedReader> forwardPipedReaders;
+    private InputStream pipedStream;
+    private Map<String, InputStream> forwardPipedStreams;
     private byte[] output;
 
     public SSHClient(String host, int port) throws IOException {
         JSch.setLogger(new SSHLogger());
         forwardSessions = new HashMap<>();
+        forwardPipedChannels = new HashMap<>();
+        forwardPipedStreams = new HashMap<>();
         client = new JSch();
         try {
             keyStore = new SSHKeyStore();
@@ -114,12 +116,21 @@ public class SSHClient {
     }
 
     public void disconnect() {
+        this.forwardPipedChannels.clear();
+        this.forwardPipedStreams.clear();
+        for(Session session : this.forwardSessions.values()) {
+            if(session != null && session.isConnected()) {
+                session.disconnect();
+            }
+        }
         if(this.session != null && this.session.isConnected()) {
             this.session.disconnect();
         }
     }
 
     public void forwardDisconnect(String host) {
+        this.forwardPipedChannels.remove(host);
+        this.forwardPipedStreams.remove(host);
         Session session = this.forwardSessions.remove(host);
         if(session != null && session.isConnected()) {
             session.disconnect();
@@ -235,7 +246,7 @@ public class SSHClient {
                     /**
                      * Read file name
                      */
-                    data = IOStreamUtils.readUntilDataIsFound(in, new byte[] { (byte) 0x0a } );
+                    data = IOStreamUtils.readUntilDataIsFound(in, new byte[] { (byte) 0x0a }, (1024 * 1024) * 1L);
                     fileName = new String(data).trim();
 
                     /**
@@ -365,8 +376,8 @@ public class SSHClient {
      * @throws IOException
      */
     public String readPipedCommandOutputLine() throws SSHException, IOException {
-        if(this.pipedChannel != null && this.pipedChannel.isConnected() && this.pipedReader != null) {
-            return this.pipedReader.readLine();
+        if(this.pipedChannel != null && this.pipedChannel.isConnected() && this.pipedStream != null) {
+            return readLine(this.pipedStream);
         }
         return null;
     }
@@ -380,47 +391,43 @@ public class SSHClient {
      */
     public String readForwardPipedCommandOutputLine(String host) throws SSHException, IOException {
         Channel channel = this.forwardPipedChannels.get(host);
-        BufferedReader reader = this.forwardPipedReaders.get(host);
-        if(channel != null && channel.isConnected() && reader != null) {
-            return reader.readLine();
+        if(channel == null) {
+            throw new SSHException("channel not available for " + host + ", not connected?");
+        }
+        InputStream stream = this.forwardPipedStreams.get(host);
+        if(stream == null) {
+            throw new SSHException("stream not available for " + host + ", not connected?");
+        }
+        if(channel.isConnected() || stream.available() > 0) {
+            return readLine(stream);
         }
         return null;
     }
 
-    public boolean pipedCommandOutputAvailable() {
-        if(this.pipedChannel != null) {
-            if(this.pipedChannel.isConnected()) {
-                return true;
-            } else {
-                if(pipedReader != null) {
-                    try {
-                        if(this.pipedReader.ready()) {
-                            return true;
-                        }
-                    } catch(IOException e) {}
+    public static String readLine(InputStream is) throws IOException {
+        /**
+         * Read line, maximum 1M to avoid exhausting the memory
+         */
+        final byte EOL = (byte) 0x0a;
+        final byte CR = (byte) 0x0d;
+        final Long MAX = (1024 * 1024) * 1L;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        while(true) {
+            int c = is.read();
+            if(c == -1) {
+                if(out.size() == 0) {
+                    return null;
                 }
+                return new String(out.toByteArray());
+            }
+            if(c == EOL || c == CR) {
+                return new String(out.toByteArray());
+            }
+            out.write(c);
+            if(out.size() >= MAX) {
+                return new String(out.toByteArray());
             }
         }
-        return false;
-    }
-
-    public boolean forwardPipedCommandOutputAvailable() {
-        Channel channel = this.forwardPipedChannels.get(host);
-        BufferedReader reader = this.forwardPipedReaders.get(host);
-        if(channel != null) {
-            if(channel.isConnected()) {
-                return true;
-            } else {
-                if(reader != null) {
-                    try {
-                        if(reader.ready()) {
-                            return true;
-                        }
-                    } catch(IOException e) {}
-                }
-            }
-        }
-        return false;
     }
 
     /**
@@ -431,8 +438,7 @@ public class SSHClient {
     public void sendPipedCommand(String... command) throws SSHException {
         this.pipedChannel = sendPipedCommand(this.session, command);
         try {
-            this.pipedReader = new BufferedReader(new InputStreamReader(
-                    new BufferedInputStream(this.pipedChannel.getInputStream())));
+            this.pipedStream = this.pipedChannel.getInputStream();
         } catch(IOException e) {
             this.pipedChannel.disconnect();
             throw new SSHException(e);
@@ -447,12 +453,14 @@ public class SSHClient {
      */
     public void sendForwardPipedCommand(String host, String... command) throws SSHException {
         Session session = this.forwardSessions.get(host);
-        this.pipedChannel = sendPipedCommand(session, command);
+        Channel channel = sendPipedCommand(session, command);
+        this.forwardPipedChannels.put(host, channel);
         try {
-            this.pipedReader = new BufferedReader(new InputStreamReader(
-                    new BufferedInputStream(this.pipedChannel.getInputStream())));
+            this.forwardPipedStreams.put(host, channel.getInputStream());
         } catch(IOException e) {
-            this.pipedChannel.disconnect();
+            if(channel != null){
+                channel.disconnect();
+            }
             throw new SSHException(e);
         }
     }
@@ -469,6 +477,7 @@ public class SSHClient {
                 }
                 sb.append(tok);
             }
+            System.out.println("SSH Command: " + sb.toString());
             Channel channel = session.openChannel("exec");
             ChannelExec.class.cast(channel).setCommand(sb.toString());
             channel.setOutputStream(null);
@@ -481,19 +490,19 @@ public class SSHClient {
     }
 
     public void terminatePipedCommand() {
-        if(this.pipedReader != null) {
+        if(this.pipedStream != null) {
             try {
-                this.pipedReader.close();
+                this.pipedStream.close();
             } catch(IOException e) {}
         }
         terminatePipedCommand(this.pipedChannel);
     }
 
     public void terminateForwardPipedCommand(String host) {
-        Reader reader = this.forwardPipedReaders.remove(host);
-        if(reader != null) {
+        InputStream stream = this.forwardPipedStreams.remove(host);
+        if(stream != null) {
             try {
-                reader.close();
+                stream.close();
             } catch(IOException e) {}
         }
         terminatePipedCommand(this.forwardPipedChannels.remove(host));

@@ -1,10 +1,8 @@
-@(testNodeCreationForm: Form[views.data.TestNodeCreationForm],
-machineTypes:Map[String, Boolean],
-images:Map[String, Boolean])
-
-@import form._
 
 @main(title = "MongoDB") {
+<script src='@routes.Assets.at("javascripts/measure.js")'></script>
+<span id="test-measurement" data-ws-url="@request.host@routes.TestApplication.testMeasurements()"></span>
+
 <div class="container">
     <div class="panel panel-primary">
         <div class="panel-heading">

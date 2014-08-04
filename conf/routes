@@ -9,9 +9,10 @@ GET        /gce/ws/zones                  controllers.GoogleComputeEngineApplica
 GET        /gce/ws/disks                  controllers.GoogleComputeEngineApplication.gceDisks()
 GET        /gce/ws/diskTypes              controllers.GoogleComputeEngineApplication.gceDiskTypes()
 GET        /gce/ws/networks               controllers.GoogleComputeEngineApplication.gceNetworks()
-GET        /gce/socket/operations         controllers.GoogleComputeEngineApplication.gceOperations()
 GET        /gce/ws/manifest               controllers.ConfigurationApplication.getManifestFile(fileName: Option[String])
 POST       /gce/ws/uploadPuppetFile       controllers.ConfigurationApplication.uploadPuppetFile()
+
+GET        /gce/socket/operations         controllers.GoogleComputeEngineApplication.gceOperations()
 
 GET        /gce/create                    controllers.GoogleComputeEngineApplication.createClusterWizard()
 POST       /gce/create                    controllers.GoogleComputeEngineApplication.createClusterWizardPost()
@@ -29,7 +30,9 @@ GET        /test/run                      controllers.TestApplication.runTest()
 POST       /test/run                      controllers.TestApplication.runTestPost()
 GET        /test/deleteNodes              controllers.TestApplication.deleteTestNodes()
 POST       /test/deleteNodes              controllers.TestApplication.deleteTestNodesPost()
-GET         /test/testPrivateKey           controllers.TestApplication.getTestNodesPrivateKey()
+GET        /test/testPrivateKey           controllers.TestApplication.getTestNodesPrivateKey()
+
+GET        /test/socket/measurements      controllers.TestApplication.testMeasurements()
 
 # Map static resources from the /public folder to the /assets URL path
 GET        /assets/*file                  controllers.Assets.at(path="/public", file)

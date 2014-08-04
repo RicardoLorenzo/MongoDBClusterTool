@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 public class YCSBMeasure implements Measure {
     private String nodeAddress;
     private TimeUnit timeUnit;
-    private Map<Integer, Long> operations;
+    private Map<Integer, Float> operations;
 
     public YCSBMeasure(String nodeAddress) {
         setNodeAddress(nodeAddress);
@@ -29,10 +29,10 @@ public class YCSBMeasure implements Measure {
     }
 
     @Override
-    public Long getTotalOperationsByType(int type) {
-        Long total = operations.get(type);
+    public Float getOperationsAverageByType(int type) {
+        Float total = operations.get(type);
         if(total == null) {
-            return 0L;
+            return 0F;
         }
         return total;
     }
@@ -48,7 +48,49 @@ public class YCSBMeasure implements Measure {
     }
 
     @Override
-    public void setTotalOperationsByType(int type, Long total) {
+    public void setTotalOperationsByType(int type, Float total) {
         this.operations.put(type, total);
+    }
+
+    public static YCSBMeasure parseMeasure(String nodeAddress, String data) {
+        if(!data.startsWith("[") || !data.contains("]")) {
+            return null;
+        }
+        if(data.contains("\n")) {
+            data = data.substring(data.indexOf("\n"));
+        }
+
+        Float average = 0F;
+        YCSBMeasure measure = new YCSBMeasure(nodeAddress);
+        String result = data.substring(data.indexOf("]" + 1)).trim();
+        if(result.startsWith(",")) {
+            result = result.substring(1, result.length());
+        }
+        if(result.contains(",")) {
+            try {
+                average = Float.parseFloat(result.substring(result.indexOf(",") + 1));
+            } catch(NumberFormatException e) {
+                return null;
+            }
+        }
+        measure.setTimeUnit(TimeUnit.SECONDS);
+        switch(data.substring(1, data.indexOf("]"))) {
+            case "INSERT":
+                measure.setTotalOperationsByType(Measure.INSERT, average);
+                break;
+            case "UPDATE":
+                measure.setTotalOperationsByType(Measure.UPDATE, average);
+                break;
+            case "DELETE":
+                measure.setTotalOperationsByType(Measure.DELETE, average);
+                break;
+            case "SCAN":
+                measure.setTotalOperationsByType(Measure.SCAN, average);
+                break;
+            case "READ":
+                measure.setTotalOperationsByType(Measure.READ, average);
+                break;
+        }
+        return measure;
     }
 }

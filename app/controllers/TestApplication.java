@@ -16,11 +16,18 @@
 
 package controllers;
 
+import actors.TestMeasureConnection;
+import akka.actor.ActorRef;
+import akka.actor.Inbox;
+import akka.actor.Props;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Qualifier;
 import play.data.Form;
+import play.libs.Akka;
+import play.libs.F;
 import play.mvc.Controller;
 import play.mvc.Result;
+import play.mvc.WebSocket;
 import services.ConfigurationService;
 import services.GoogleAuthenticationService;
 import services.GoogleComputeEngineService;
@@ -29,9 +36,11 @@ import utils.gce.auth.GoogleComputeEngineAuthImpl;
 import utils.play.BugWorkaroundForm;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
+import utils.test.Test;
 import utils.test.TestException;
 import utils.test.TestRunner;
 import utils.test.YCSBTestRunner;
+import utils.test.data.Measure;
 import utils.test.data.YCSBWorkload;
 import views.data.RunTestForm;
 import views.data.TestNodeCreationForm;
@@ -43,9 +52,15 @@ import java.util.*;
 
 @org.springframework.stereotype.Controller
 public class TestApplication extends Controller {
+    private static TestRunner runner;
     private static GoogleAuthenticationService googleAuth;
     private static ConfigurationService configurationService;
     private static GoogleComputeEngineService googleService;
+
+    @Inject
+    void setTestRunner(@Qualifier("test-runner") TestRunner runner) {
+        TestApplication.runner = runner;
+    }
 
     @Inject
     void setGoogleService(@Qualifier("gauth-service") GoogleAuthenticationService googleAuth) {
@@ -146,6 +161,33 @@ public class TestApplication extends Controller {
         }
     }
 
+    public static WebSocket<JsonNode> testMeasurements() {
+        return new WebSocket<JsonNode>() {
+            public void onReady(final In<JsonNode> in, final Out<JsonNode> out) {
+                final ActorRef measureActor = Akka.system().actorOf(Props.create(TestMeasureConnection.class, out));
+
+                in.onClose(new F.Callback0() {
+                    @Override
+                    public void invoke() throws Throwable {
+                        Akka.system().stop(measureActor);
+                    }
+                });
+
+                Inbox inbox = Inbox.create(Akka.system());
+                while(TestRunner.hasTestNodesRunning()) {
+                    Measure m = TestRunner.getMeasureFromQueue();
+                    if(m != null) {
+                        inbox.send(measureActor, m);
+                    } else {
+                        try {
+                            Thread.sleep(100);
+                        } catch(InterruptedException e) {}
+                    }
+                }
+            }
+        };
+    }
+
     public static Result runTest() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
@@ -155,10 +197,18 @@ public class TestApplication extends Controller {
             }
 
             Map<String, Boolean> phases = new HashMap<>();
-            phases.put("load", false);
+            phases.put("load", true);
             phases.put("run", false);
 
             RunTestForm runTest = new RunTestForm();
+            runTest.setThreads(1);
+            runTest.setRecordCount(1000);
+            runTest.setOperationCount(1000);
+            runTest.setBulkCount(100);
+            runTest.setReadProportion(0.8F);
+            runTest.setUpdateProportion(0.2F);
+            runTest.setScanProportion(0F);
+            runTest.setInsertProportion(0F);
             Form<RunTestForm> formData = Form.form(RunTestForm.class).fill(runTest);
             return ok(views.html.run_test.render(
                     formData,
@@ -190,6 +240,10 @@ public class TestApplication extends Controller {
                         phases
                 ));
             } else {
+                Integer phase = Test.PHASE_RUN;
+                if("load".equals(runTest.getPhase())) {
+                    phase = Test.PHASE_LOAD;
+                }
                 YCSBWorkload workload = new YCSBWorkload();
                 workload.setRecordcount(runTest.getRecordCount());
                 workload.setOperationcount(runTest.getOperationCount());
@@ -211,7 +265,7 @@ public class TestApplication extends Controller {
                     if(testNodesAddresses == null || testNodesAddresses.isEmpty()) {
                         throw new TestException("No test nodes found. Something weird is happening, please create again the test nodes");
                     }
-                    runner.runTest(jumpServerAddress, testNodesAddresses);
+                    runner.runTest(phase, jumpServerAddress, testNodesAddresses);
                     flash("success", "Test run launched! Please check the outcome in the results page.");
                 } catch(GoogleComputeEngineException e) {
                     return ok(views.html.error.render(e.getMessage()));
