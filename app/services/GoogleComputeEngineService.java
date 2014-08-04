@@ -252,6 +252,15 @@ public class GoogleComputeEngineService {
         return addresses;
     }
 
+    public List<String> getInstancesNames(List<String> tags) throws GoogleComputeEngineException {
+        checkAuthentication();
+        List<String> names = new ArrayList<>();
+        for(Instance instance : client.getInstances(tags)) {
+            names.add(instance.getName());
+        }
+        return names;
+    }
+
     public String getClusterPublicAddress() throws GoogleComputeEngineException {
         checkAuthentication();
         String clusterName = ConfigurationService.getClusterName();
@@ -397,6 +406,7 @@ public class GoogleComputeEngineService {
             log.info("instance [" + instanceName + "] already exists, not created");
         }
         ConfigurationService.setClusterName(clusterName);
+        ConfigurationService.setClusterNodeProcesses(processes);
 
         /**
          * Create the config nodes

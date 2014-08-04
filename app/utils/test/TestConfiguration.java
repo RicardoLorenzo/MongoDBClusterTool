@@ -2,17 +2,23 @@ package utils.test;
 
 import conf.PlayConfiguration;
 import services.ConfigurationService;
+import utils.gce.GoogleComputeEngineException;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Created by ricardolorenzo on 30/07/2014.
  */
 public class TestConfiguration {
     private static final String YCSB_REPOSITORY = "https://github.com/RicardoLorenzo/YCSB.git";
+    private static final Integer MONGODB_SHARD_INIT_PORT = 27040;
     public static final String YCSB_DIRECTORY = "YCSB";
 
-    public static String getNodeStartupScriptContent(String serverName) throws IOException {
+    public static String getNodeStartupScriptContent(String serverName, List<String> configNodeNames,
+                                                     List<String> shardNodeNames)
+            throws IOException, GoogleComputeEngineException {
+        Integer shardPorcesses = ConfigurationService.getClusterNodeProcesses();
         String user = ConfigurationService.TEST_USER;
         if(user.contains("@")) {
             user = user.substring(0, user.lastIndexOf("@"));
@@ -33,6 +39,7 @@ public class TestConfiguration {
         sb.append("echo \"deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen\" >");
         sb.append(" /etc/apt/sources.list.d/mongodb.list\n");
         sb.append("installPackage mongodb-org-mongos\n");
+        sb.append("installPackage mongodb-org-shell\n");
 
         /**
          * An assumption here, is the fact that the SSH user is created,
@@ -88,7 +95,42 @@ public class TestConfiguration {
         sb.append(" && mvn clean package -Dmaven.test.skip=true -DproxySet=true -DproxyHost=");
         sb.append(serverName);
         sb.append(" -DproxyPort=80\"\n");
-        sb.append("fi");
+        sb.append("fi\n");
+
+        /**
+         * Mongos configuration
+         */
+        StringBuilder configdb = new StringBuilder();
+        sb.append("if ! [ -e \"/etc/mongos.sconf\" ]; then\n");
+        sb.append("  echo \"port = 27017\nconfigdb = ");
+        for(String confNode : configNodeNames) {
+            if(configdb.length() > 0) {
+                configdb.append(",");
+            }
+            configdb.append(confNode);
+        }
+        sb.append(configdb.toString());
+        sb.append("\nlogpath = /var/log/mongos.log\nlogappend = yes\n");
+        sb.append("\" > /etc/mongos.conf\n");
+        sb.append("fi\n");
+
+        /**
+         * Shard cluster configuration
+         */
+        sb.append("if ! [ -e \"/etc/mongos.js\" ]; then\n");
+        sb.append("  echo \"");
+        for(String shardNode : shardNodeNames) {
+            for(int port = MONGODB_SHARD_INIT_PORT; port < (MONGODB_SHARD_INIT_PORT + shardPorcesses); port++) {
+                sb.append("sh.addShard('");
+                sb.append(shardNode);
+                sb.append(":");
+                sb.append(port);
+                sb.append("')\n");
+            }
+        }
+        sb.append("\" > /etc/mongos.js\n");
+        sb.append(" mongo /etc/mongos.js\n");
+        sb.append("fi\n");
         return sb.toString();
     }
 

@@ -95,16 +95,16 @@ public class PuppetConfiguration {
 
     public static String generateMongoConfClassManifest() throws PuppetConfigurationException {
         PuppetClass confClass = new PuppetClass("mongodb-conf");
-        confClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongodb")
+        confClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "mongod")
                 .setProperty("ensure", "running")
                 .setProperty("enable", "true")
-                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/mongodb.conf"));
-        confClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb.conf")
+                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/mongod.conf"));
+        confClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongod.conf")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
                 .setProperty("mode", "644")
                 .setStringProperty("source", "puppet:///files/mongodb-config-server.conf")
-                .setNotify(PuppetModule.TYPE_SERVICE, "mongodb")
+                .setNotify(PuppetModule.TYPE_SERVICE, "mongod")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         return confClass.toString();
     }

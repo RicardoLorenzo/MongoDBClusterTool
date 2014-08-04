@@ -14,22 +14,32 @@ public abstract class TestRunner {
 
     protected abstract Test getTest();
 
+    protected abstract void preRunTask(String jumpAddress, List<String> nodeAddresses) throws TestException;
+
     protected abstract void preRunTask(String jumpAddress, String testNodeAddress) throws TestException;
 
     public void runTest(String jumpAddress, List<String> testNodeAddresses) {
-        for(String testNodeAddress : testNodeAddresses) {
-            try {
-                preRunTask(jumpAddress, testNodeAddress);
-                TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest());
-                Thread t = new Thread(runner);
-                testThreads.put(testNodeAddress, t);
-                t.start();
-            } catch(TestException e) {
-                /**
-                 * Not started
-                 * TODO log this
-                 */
+        try {
+            preRunTask(jumpAddress, testNodeAddresses);
+            for(String testNodeAddress : testNodeAddresses) {
+                try {
+                    preRunTask(jumpAddress, testNodeAddress);
+                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest());
+                    Thread t = new Thread(runner);
+                    testThreads.put(testNodeAddress, t);
+                    t.start();
+                } catch(TestException e) {
+                    /**
+                     * Not started
+                     * TODO log this
+                     */
+                }
             }
+        } catch(TestException e) {
+            /**
+             * Not started
+             * TODO log this
+             */
         }
     }
 

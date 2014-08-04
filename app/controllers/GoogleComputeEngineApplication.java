@@ -93,7 +93,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static F.Promise<Result> gceDiskTypes() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return F.Promise.promise(() -> redirect(result));
             }
@@ -123,7 +123,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static F.Promise<Result> gceNetworks() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return F.Promise.promise(() -> redirect(result));
             }
@@ -184,7 +184,7 @@ public class GoogleComputeEngineApplication extends Controller {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
             boolean option_chosen;
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -327,7 +327,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static Result deleteClusterWizard() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }
@@ -345,7 +345,7 @@ public class GoogleComputeEngineApplication extends Controller {
     public static Result deleteClusterWizardPost() {
         String callBackUrl = GoogleComputeEngineAuthImpl.getCallBackURL(request());
         try {
-            String result = googleAuth.authenticate(callBackUrl, null);
+            String result = GoogleAuthenticationService.authenticate(callBackUrl, null);
             if(result != null) {
                 return redirect(result);
             }

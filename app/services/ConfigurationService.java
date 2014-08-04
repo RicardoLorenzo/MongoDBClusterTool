@@ -35,10 +35,7 @@ import utils.test.TestConfiguration;
 import javax.inject.Inject;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.util.*;
 
 /**
  * Created by ricardolorenzo on 27/07/2014.
@@ -94,15 +91,15 @@ public class ConfigurationService {
         return new File(applicationDirectory + "/cluster.name");
     }
 
-    private static File getTestNodeListFile() {
-        return new File(applicationDirectory + "/test-nodes.list");
+    private static File getClusterNodeProcessesFile() {
+        return new File(applicationDirectory + "/cluster.processes");
     }
 
     private static File getStartupScriptFile() throws IOException {
         return File.createTempFile("startup-script", ".sh");
     }
 
-    private static String getInternalServerName(String instanceName) throws GoogleComputeEngineException {
+    public static String getInternalServerName(String instanceName) {
         StringBuilder name = new StringBuilder();
         name.append(instanceName);
         name.append(".c.");
@@ -148,6 +145,18 @@ public class ConfigurationService {
             return FileUtils.readFileAsString(f);
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot read cluster name file: " + e.getMessage());
+        }
+    }
+
+    public static Integer getClusterNodeProcesses() throws GoogleComputeEngineException {
+        File f = getClusterNodeProcessesFile();
+        if(!f.exists()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(FileUtils.readFileAsString(f).trim());
+        } catch(IOException e) {
+            throw new GoogleComputeEngineException("cannot read cluster node processes file: " + e.getMessage());
         }
     }
 
@@ -218,7 +227,9 @@ public class ConfigurationService {
         try {
             File f = getStartupScriptFile();
             FileUtils.writeFile(f, TestConfiguration.getNodeStartupScriptContent(
-                    getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP))));
+                    getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP)),
+                    googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_CONF, clusterName)),
+                    googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName))));
             return f;
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
@@ -350,6 +361,21 @@ public class ConfigurationService {
                 throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
             } catch(FileLockException e) {
                 throw new GoogleComputeEngineException("cannot write cluster name file: " + e.getMessage());
+            }
+        }
+    }
+
+    public static void setClusterNodeProcesses(Integer processes) throws GoogleComputeEngineException {
+        File f = getClusterNodeProcessesFile();
+        if(processes == null) {
+            f.delete();
+        } else {
+            try {
+                FileUtils.writeFile(f, String.valueOf(processes));
+            } catch(IOException e) {
+                throw new GoogleComputeEngineException("cannot write cluster node processes file: " + e.getMessage());
+            } catch(FileLockException e) {
+                throw new GoogleComputeEngineException("cannot write cluster node processes file: " + e.getMessage());
             }
         }
     }
