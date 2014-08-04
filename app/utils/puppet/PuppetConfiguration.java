@@ -255,7 +255,7 @@ public class PuppetConfiguration {
         sb.append("\" > ");
         sb.append(PUPPET_HOME_DIR);
         sb.append("/auth.conf\n");
-        sb.append("service puppet stop\npuppet agent --test --waitforcert 60\nsleep 1\nservice puppet start\n");
+        sb.append("service puppet stop\nrunCommand puppet agent --test --waitforcert 60\nsleep 1\nservice puppet start\n");
         return sb.toString();
     }
 
