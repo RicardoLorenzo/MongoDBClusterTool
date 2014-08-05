@@ -13,7 +13,7 @@ public abstract class TestRunner {
     private static Map<String, Thread> testThreads = new HashMap<>();
     private static Map<String, Object> attributeObjects = new HashMap<>();
 
-    protected abstract Test getTest(Integer testPhase) throws TestException;
+    protected abstract Test getTest(Integer testPhase, Integer nodeNumber) throws TestException;
 
     protected static void cleanAttributeObjects() {
         attributeObjects.clear();
@@ -57,11 +57,13 @@ public abstract class TestRunner {
 
     public void runTest(Integer phase, String jumpAddress, List<String> testNodeAddresses) throws TestException {
         try {
+            Integer nodeCount = 1;
             initializeTasks(phase, jumpAddress, testNodeAddresses);
             for(String testNodeAddress : testNodeAddresses) {
                 try {
                     preRunTask(jumpAddress, testNodeAddress);
-                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest(phase));
+                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest(phase, nodeCount));
+                    nodeCount++;
                     Thread t = new Thread(runner);
                     t.setName(testNodeAddress);
                     testThreads.put(testNodeAddress, t);

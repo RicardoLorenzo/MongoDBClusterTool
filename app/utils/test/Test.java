@@ -13,6 +13,10 @@ public interface Test {
 
     public String getBinaryFile();
 
+    public Integer getInsertStart();
+
+    public Integer getInsertCount();
+
     public Integer getPhase();
 
     public String getDatabaseUrl();
@@ -22,6 +26,10 @@ public interface Test {
     public void setBinaryDirectory(String binaryDirectory);
 
     public void setBinaryFile(String binaryFile);
+
+    public void setInsertStart(Integer insertStart);
+
+    public void setInsertCount(Integer insertCount);
 
     public void setDatabaseUrl(String databaseUrl);
 

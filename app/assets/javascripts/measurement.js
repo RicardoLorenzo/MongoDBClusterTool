@@ -5,17 +5,15 @@ function getMeasurements() {
     var operationsCtx = document.getElementById("operations");
     var latenciesCtx = document.getElementById("latencies");
     var operationsData = loadOperationsData({}, {
-        name: "-",
+        node: "-",
         time: "-1",
-        insert: 0
-
+        insertcount: 0
     });
     var latenciesData = loadOperationsData({}, {
-            name: "-",
-            time: "-1",
-            insert: 0
-
-        });
+        node: "-",
+        time: "-1",
+        insertaverage: 0
+    });
 
     ws.onopen = function() {
         var message = {
@@ -68,7 +66,6 @@ function loadOperationsData(data, message) {
         }
         if(ds_index != -1) {
             data.datasets.splice(ds_index, 1);
-            ds_index = -1;
         }
     }
     for(var i = 0; i < data.labels.length; i++) {
@@ -78,8 +75,9 @@ function loadOperationsData(data, message) {
         l_index = i;
         break;
     }
+    ds_index = -1;
     for(var i = 0; i < data.datasets.length; i++) {
-        if(data.datasets[i].label != message.name) {
+        if(data.datasets[i].label != message.node) {
             continue;
         }
         ds_index = i;
@@ -128,7 +126,6 @@ function loadLatenciesData(data, message) {
         }
         if(ds_index != -1) {
             data.datasets.splice(ds_index, 1);
-            ds_index = -1;
         }
     }
     for(var i = 0; i < data.labels.length; i++) {
@@ -138,8 +135,9 @@ function loadLatenciesData(data, message) {
         l_index = i;
         break;
     }
+    ds_index = -1;
     for(var i = 0; i < data.datasets.length; i++) {
-        if(data.datasets[i].label != message.name) {
+        if(data.datasets[i].label != message.node) {
             continue;
         }
         ds_index = i;

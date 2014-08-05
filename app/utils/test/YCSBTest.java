@@ -12,6 +12,8 @@ public class YCSBTest implements Test {
     private String mongoDbUrl;
     private String workloadFilePath;
     private Integer bulkSize;
+    private Integer insertStart = 0;
+    private Integer insertCount = 0;
 
     public YCSBTest(String binaryDirectory, String binaryFile, Integer phase, String remoteWorloadFilePath, Integer threads,
                     Integer bulkSize) throws TestException {
@@ -42,6 +44,14 @@ public class YCSBTest implements Test {
         sb.append(workloadFilePath);
         sb.append(" -p measurementtype=timeseries");
         sb.append(" -p measurementoutput=live");
+        if(insertStart > 0) {
+            sb.append(" -p insertstart=");
+            sb.append(insertStart);
+        }
+        if(insertCount > 0) {
+            sb.append(" -p insertcount=");
+            sb.append(insertCount);
+        }
         if(threads > 1) {
             sb.append(" -threads ");
             sb.append(threads);
@@ -66,6 +76,16 @@ public class YCSBTest implements Test {
     }
 
     @Override
+    public Integer getInsertStart() {
+        return insertStart;
+    }
+
+    @Override
+    public Integer getInsertCount() {
+        return insertCount;
+    }
+
+    @Override
     public String getWorkingDirectory() {
         return workingDirectory;
     }
@@ -78,6 +98,16 @@ public class YCSBTest implements Test {
     @Override
     public void setBinaryFile(String binaryFile) {
         this.binaryFile = binaryFile;
+    }
+
+    @Override
+    public void setInsertStart(Integer insertStart) {
+        this.insertStart = insertStart;
+    }
+
+    @Override
+    public void setInsertCount(Integer insertCount) {
+        this.insertCount = insertCount;
     }
 
     @Override

@@ -25,17 +25,19 @@ public class YCSBTestRunner extends TestRunner {
     private YCSBWorkload workload;
     private Integer threads;
     private Integer bulkCount;
+    private Integer nodeCount;
 
     public YCSBTestRunner(YCSBWorkload workload, Integer threads, Integer bulkCount) {
         super();
         this.workload = workload;
         this.threads = threads;
         this.bulkCount = bulkCount;
+        this.nodeCount = 0;
         cleanAttributeObjects();
     }
 
     @Override
-    protected Test getTest(Integer phase) throws TestException {
+    protected Test getTest(Integer phase, Integer nodeNumber) throws TestException {
         String user = ConfigurationService.TEST_USER;
         if(user.contains("@")) {
             user = user.substring(0, user.indexOf("@"));
@@ -48,6 +50,9 @@ public class YCSBTestRunner extends TestRunner {
         sb.append("/bin");
         Test t = new YCSBTest(sb.toString(), "ycsb", phase, WORKLOAD_FILE_PATH, threads, bulkCount);
         t.setDatabaseUrl(databaseUrl);
+        Integer recordsPerNode = (this.workload.getRecordcount()/nodeCount);
+        t.setInsertCount(recordsPerNode);
+        t.setInsertStart(recordsPerNode * (nodeNumber - 1));
         return t;
     }
 
@@ -77,6 +82,7 @@ public class YCSBTestRunner extends TestRunner {
     @Override
     protected void initializeTasks(Integer phase, String jumpAddress, List<String> testNodeAddresses) throws TestException {
         Random r = new Random();
+        this.nodeCount = testNodeAddresses.size();
         String randomTestNode = testNodeAddresses.get(r.nextInt(testNodeAddresses.size() - 1));
         try {
             SSHClient client = connect(jumpAddress);
