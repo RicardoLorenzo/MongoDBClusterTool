@@ -8,12 +8,33 @@
         <div class="panel-heading">
             <h4 class="panel-title">
                 <i class="icon-leaf icon-white"></i>
-                Test results
+                Operations per second
             </h4>
         </div>
         <div class="panel-body">
+            <div id="operations-spinner" class="spinner">
+                <p class="text-center text-info">Center aligned text.</p>
+                <p class="text-center"><img src='@routes.Assets.at("images/spinner.gif")'/></p>
+            </div>
             <div style="width: 98%">
-                <canvas id="measurements"></canvas>
+                <canvas id="operations"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <h4 class="panel-title">
+                <i class="icon-leaf icon-white"></i>
+                Latency average (ms)
+            </h4>
+        </div>
+        <div class="panel-body">
+            <div id="latencies-spinner" class="spinner">
+                <p class="text-center text-info">Center aligned text.</p>
+                <p class="text-center"><img src='@routes.Assets.at("images/spinner.gif")'/></p>
+            </div>
+            <div style="width: 98%">
+                <canvas id="latencies"></canvas>
             </div>
         </div>
     </div>

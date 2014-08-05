@@ -42,7 +42,7 @@ public class TestMeasureConnection extends UntypedActor {
             Measure measure = Measure.class.cast(message);
             ObjectNode measureData = Json.newObject();
             measureData.put("type", "measure");
-            measureData.put("name", measure.getNodeAddress());
+            measureData.put("node", measure.getNodeAddress());
             measureData.put("insertcount", measure.getTotalOperationsByType(Measure.INSERT));
             measureData.put("updatecount", measure.getTotalOperationsByType(Measure.UPDATE));
             measureData.put("deletecount", measure.getTotalOperationsByType(Measure.DELETE));
