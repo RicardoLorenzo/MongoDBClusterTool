@@ -25,7 +25,6 @@ public abstract class TestNodeRunner implements Runnable {
         this.jumpAddress = jumpAddress;
         this.nodeAddress = nodeAddress;
         this.systemCommand = test.getSystemCommand();
-        System.out.println("C: " + this.systemCommand);
     }
 
     protected String getNodeAddress() {

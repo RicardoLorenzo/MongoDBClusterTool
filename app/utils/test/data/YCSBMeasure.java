@@ -103,27 +103,27 @@ public class YCSBMeasure implements Measure {
         Long second;
         Integer count;
         YCSBMeasure measure = new YCSBMeasure(nodeAddress);
-        if(tokens[2].matches("^\\d+(\\.\\d)?$")) {
+        if(tokens[3].matches("^[0-9]{1,13}(\\.[0-9]+)?$")) {
             try {
-                count = Integer.parseInt(tokens[2]);
+                count = Integer.parseInt(tokens[3]);
             } catch(NumberFormatException e) {
                 return null;
             }
         } else {
             return null;
         }
-        if(tokens[1].matches("^\\d+(\\.\\d)?$")) {
+        if(tokens[2].matches("^[0-9]{1,13}(\\.[0-9]+)?$")) {
             try {
-                average = Float.parseFloat(tokens[1]);
+                average = Float.parseFloat(tokens[2]);
             } catch(NumberFormatException e) {
                 return null;
             }
         } else {
             return null;
         }
-        if(tokens[0].matches("^\\d+(\\.\\d)?$")) {
+        if(tokens[1].matches("^[0-9]{1,13}(\\.[0-9]+)?$")) {
             try {
-                second = Long.parseLong(tokens[0]);
+                second = Long.parseLong(tokens[1]);
             } catch(NumberFormatException e) {
                 return null;
             }
