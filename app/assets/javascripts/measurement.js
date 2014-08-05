@@ -96,7 +96,7 @@ function loadData(data, message) {
         });
         ds_index = data.datasets.length - 1;
     }
-    data.datasets[ds_index].data.push(message.insert);
+    data.datasets[ds_index].data.push(message.insertcount);
     return data;
 }
 

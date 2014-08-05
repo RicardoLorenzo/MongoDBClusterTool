@@ -11,12 +11,14 @@ public class YCSBMeasure implements Measure {
     private String nodeAddress;
     private Long time;
     private TimeUnit timeUnit;
-    private Map<Integer, Float> operations;
+    private Map<Integer, Integer> operations;
+    private Map<Integer, Float> latency;
 
     public YCSBMeasure(String nodeAddress) {
         setNodeAddress(nodeAddress);
         timeUnit = TimeUnit.SECONDS;
         operations = new HashMap<>();
+        latency = new HashMap<>();
     }
     
     @Override
@@ -35,10 +37,19 @@ public class YCSBMeasure implements Measure {
     }
 
     @Override
-    public Float getOperationsAverageByType(int type) {
-        Float total = operations.get(type);
+    public Float getAverageLatencyByType(int type) {
+        Float total = latency.get(type);
         if(total == null) {
             return 0F;
+        }
+        return total;
+    }
+
+    @Override
+    public Integer getTotalOperationsByType(int type) {
+        Integer total = operations.get(type);
+        if(total == null) {
+            return 0;
         }
         return total;
     }
@@ -59,12 +70,17 @@ public class YCSBMeasure implements Measure {
     }
 
     @Override
-    public void setTotalOperationsByType(int type, Float total) {
+    public void setAverageLatencyByType(int type, Float average) {
+        this.latency.put(type, average);
+    }
+
+    @Override
+    public void setTotalOperationsByType(int type, Integer total) {
         this.operations.put(type, total);
     }
 
     public static YCSBMeasure parseMeasure(String nodeAddress, String data) {
-        if(data == null || data.isEmpty() || !data.startsWith("[") || !data.contains("]")) {
+        if(data == null || data.isEmpty() || !data.startsWith("[") || !data.contains("]") || !data.contains(",")) {
             return null;
         }
         data = data.trim();
@@ -72,36 +88,42 @@ public class YCSBMeasure implements Measure {
             data = data.substring(data.indexOf("\n"));
         }
 
-        Float average = 0F;
-        Long second = 0L;
-        YCSBMeasure measure = new YCSBMeasure(nodeAddress);
-        String result = data.substring(data.indexOf("]") + 1);
-        if(result.startsWith(",")) {
-            result = result.substring(1, result.length());
+        String[] tokens = data.split(",");
+        if(tokens.length < 4) {
+            return null;
         }
-        if(result.contains(",")) {
-            String[] tokens = result.split(",");
-            if(tokens[1].trim().matches("^\\d+(\\.\\d)?$")) {
-                try {
-                    average = Float.parseFloat(tokens[1].trim());
-                } catch(NumberFormatException e) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-            if(tokens[0].trim().matches("^\\d+(\\.\\d)?$")) {
-                try {
-                    second = Long.parseLong(tokens[0].trim());
-                } catch(NumberFormatException e) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        } else if(result.matches("[0-9.]+")) {
+        for(int i = 0; i < tokens.length; i++) {
+            tokens[i] = tokens[i].trim();
+        }
+        if(!tokens[0].startsWith("[") || !tokens[0].endsWith("]")) {
+            return null;
+        }
+
+        Float average;
+        Long second;
+        Integer count;
+        YCSBMeasure measure = new YCSBMeasure(nodeAddress);
+        if(tokens[2].matches("^\\d+(\\.\\d)?$")) {
             try {
-                average = Float.parseFloat(result);
+                count = Integer.parseInt(tokens[2]);
+            } catch(NumberFormatException e) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+        if(tokens[1].matches("^\\d+(\\.\\d)?$")) {
+            try {
+                average = Float.parseFloat(tokens[1]);
+            } catch(NumberFormatException e) {
+                return null;
+            }
+        } else {
+            return null;
+        }
+        if(tokens[0].matches("^\\d+(\\.\\d)?$")) {
+            try {
+                second = Long.parseLong(tokens[0]);
             } catch(NumberFormatException e) {
                 return null;
             }
@@ -111,21 +133,26 @@ public class YCSBMeasure implements Measure {
 
         measure.setTime(second);
         measure.setTimeUnit(TimeUnit.SECONDS);
-        switch(data.substring(1, data.indexOf("]"))) {
+        switch(tokens[0].substring(1, data.indexOf("]"))) {
             case "INSERT":
-                measure.setTotalOperationsByType(Measure.INSERT, average);
+                measure.setTotalOperationsByType(Measure.INSERT, count);
+                measure.setAverageLatencyByType(Measure.INSERT, average);
                 break;
             case "UPDATE":
-                measure.setTotalOperationsByType(Measure.UPDATE, average);
+                measure.setTotalOperationsByType(Measure.UPDATE, count);
+                measure.setAverageLatencyByType(Measure.UPDATE, average);
                 break;
             case "DELETE":
-                measure.setTotalOperationsByType(Measure.DELETE, average);
+                measure.setTotalOperationsByType(Measure.DELETE, count);
+                measure.setAverageLatencyByType(Measure.DELETE, average);
                 break;
             case "SCAN":
-                measure.setTotalOperationsByType(Measure.SCAN, average);
+                measure.setTotalOperationsByType(Measure.SCAN, count);
+                measure.setAverageLatencyByType(Measure.SCAN, average);
                 break;
             case "READ":
-                measure.setTotalOperationsByType(Measure.READ, average);
+                measure.setTotalOperationsByType(Measure.READ, count);
+                measure.setAverageLatencyByType(Measure.READ, average);
                 break;
             default:
                 return null;

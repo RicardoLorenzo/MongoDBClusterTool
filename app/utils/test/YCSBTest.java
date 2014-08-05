@@ -41,6 +41,7 @@ public class YCSBTest implements Test {
         sb.append(" mongodb -P ");
         sb.append(workloadFilePath);
         sb.append(" -p measurementtype=timeseries");
+        sb.append(" -p measurementoutput=live");
         if(threads > 1) {
             sb.append(" -threads ");
             sb.append(threads);

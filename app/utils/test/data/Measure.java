@@ -18,7 +18,9 @@ public interface Measure {
 
     public TimeUnit getTimeUnit();
 
-    public Float getOperationsAverageByType(int type);
+    public Float getAverageLatencyByType(int type);
+
+    public Integer getTotalOperationsByType(int type);
 
     public void setNodeAddress(String address);
 
@@ -26,5 +28,7 @@ public interface Measure {
 
     public void setTimeUnit(TimeUnit timeUnit);
 
-    public void setTotalOperationsByType(int type, Float total);
+    public void setTotalOperationsByType(int type, Integer total);
+
+    public void setAverageLatencyByType(int type, Float total);
 }
