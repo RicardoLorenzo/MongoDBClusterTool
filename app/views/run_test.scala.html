@@ -13,16 +13,6 @@ phases:Map[String, Boolean])
             </h4>
         </div>
         <div class="panel-body">
-            @if(flash.containsKey("success")) {
-            <div id="success-message" class="alert alert-success">
-                @flash.get("success")
-            </div>
-            <p></p>
-
-            <div class="center-block">
-                <a class="btn btn-primary" href="@routes.Application.index()">Accept</a>
-            </div>
-            } else {
             @helper.form(routes.TestApplication.runTestPost(), 'class -> "form-horizontal") {
             <fieldset>
                 <!-- Phase -->
@@ -97,7 +87,6 @@ phases:Map[String, Boolean])
                     </div>
                 </div>
             </fieldset>
-            }
             }
             @if(flash.containsKey("error")) {
             <div id="error-message" class="alert alert-error">
