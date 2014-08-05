@@ -88,9 +88,9 @@ public class YCSBTestRunner extends TestRunner {
                                     FilePermissions.READ, FilePermissions.READ);
                             StringBuilder sb = new StringBuilder();
                             sb.append("db = db.getSiblingDB(\"ycsb\");\n");
-                            sb.append("db.dropDatabase()");
-                            sb.append("sh.enableSharding(\"ycsb\")");
-                            sb.append("sh.shardCollection(\"ycsb.usertable\", { \"_id\": \"hashed\" })");
+                            sb.append("db.dropDatabase();\n");
+                            sb.append("sh.enableSharding(\"ycsb\");\n");
+                            sb.append("sh.shardCollection(\"ycsb.usertable\", { \"_id\": \"hashed\" });\n");
                             FileUtils.writeFile(f, sb.toString());
                             client.forwardConnect(randomTestNode, ConfigurationService.TEST_USER, 22);
                             client.sendForwardFile(randomTestNode, f, "/tmp/init-test.js", permissions);
