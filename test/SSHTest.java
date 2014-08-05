@@ -31,14 +31,25 @@ public class SSHTest {
     public void sshConnectionTest() {
         Helpers.running(Helpers.fakeApplication(), () -> {
             try {
-                SSHClient client = new SSHClient("23.236.60.31", 22);
+                SSHClient client = new SSHClient("107.178.215.148", 22);
                 try {
                     client.connect(ConfigurationService.TEST_USER);
                     //client.sendCommand("ls", "-l", "/");
+                    /*
                     System.out.println("===================================\n");
                     System.out.println("ls -l /\n");
                     System.out.println("===================================\n");
                     client.sendCommand("ls", "-l", "/");
+                    System.out.println(client.getStringOutput());
+                    */
+                    client.forwardConnect("10.240.57.168", ConfigurationService.TEST_USER, 22);
+                    //System.out.println("===================================\n");
+                    //client.sendForwardCommand("10.240.184.123", "sudo", "cat", "/var/run/google.startup.script");
+                    System.out.println("===================================\n");
+                    client.sendForwardCommand("10.240.57.168", "tail", "-500", "/var/log/syslog");
+                    System.out.println(client.getStringOutput());
+                    System.out.println("===================================\n");
+                    client.sendForwardCommand("10.240.57.168", "cat", "/var/run/google.startup.script");
                     System.out.println(client.getStringOutput());
                 } finally {
                     client.disconnect();

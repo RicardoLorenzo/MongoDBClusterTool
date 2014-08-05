@@ -278,16 +278,13 @@ public class TestApplication extends Controller {
                         throw new TestException("No test nodes found. Something weird is happening, please create again the test nodes");
                     }
                     runner.runTest(phase, jumpServerAddress, testNodesAddresses);
-                    flash("success", "Test run launched! Please check the outcome in the results page.");
+                    //flash("success", "Test run launched! Please check the outcome in the results page.");
                 } catch(GoogleComputeEngineException e) {
                     return ok(views.html.error.render(e.getMessage()));
                 } catch(TestException e) {
                     return ok(views.html.error.render(e.getMessage()));
                 }
-                return ok(views.html.run_test.render(
-                        formData,
-                        null
-                ));
+                return redirect(routes.TestApplication.testResults());
             }
         } catch(GoogleComputeEngineException e) {
             return ok(views.html.error.render(e.getMessage()));

@@ -15,6 +15,10 @@ public abstract class TestRunner {
 
     protected abstract Test getTest(Integer testPhase) throws TestException;
 
+    protected static void cleanAttributeObjects() {
+        attributeObjects.clear();
+    }
+
     protected abstract void finalizeTasks();
 
     protected static Object getAttributeObject(String name) {

@@ -31,6 +31,7 @@ public class YCSBTestRunner extends TestRunner {
         this.workload = workload;
         this.threads = threads;
         this.bulkCount = bulkCount;
+        cleanAttributeObjects();
     }
 
     @Override
