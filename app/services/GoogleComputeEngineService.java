@@ -450,58 +450,79 @@ public class GoogleComputeEngineService {
         }
 
         /**
-         * Create the shard nodes data disks
+         * Put the cluster node shard creation task in a background thread
          */
-        Map<String, Map<String, String>> instancesDataDisks = new HashMap<>();
-        instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_SHARD);
-        tags = Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName);
-        for(Integer i = 1; i <= shards; i++) {
-            Map<String, String> dataDisks = new HashMap<>();
-            StringBuilder instance_name = new StringBuilder();
-            instance_name.append(instanceName);
-            instance_name.append("-node-");
-            instance_name.append(i);
-            try {
-                for(Integer d = 1; d <= disksPerShard; d++) {
-                    StringBuilder disk_name = new StringBuilder();
-                    disk_name.append(instance_name.toString());
-                    disk_name.append("-disk");
-                    disk_name.append(d);
-                    dataDisks.put(disk_name.toString(), client.createDisk(disk_name.toString(), diskType,
-                            dataDiskSizeGb));
-                }
-                instancesDataDisks.put(instance_name.toString(), dataDisks);
-            } catch(GoogleComputeEngineException e) {
-                log.info("cannot create data disks for [" + instance_name.toString() +
-                        "], instance not created: " + e.getMessage());
-                continue;
-            }
-        }
+        final String t_instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_SHARD);
+        final List<String> t_tags = Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName);
+        final String t_machineType = machineType;
+        final String t_sourceImage = sourceImage;
+        final String t_diskType = diskType;
 
-        /**
-         * Time to get all the disk resources ready to be attached
-         */
-        try {
-            Thread.sleep(1000);
-        } catch(InterruptedException e) {}
 
-        /**
-         * Create the shard nodes instances
-         */
-        try {
-            for(Map.Entry<String, Map<String, String>> instance : instancesDataDisks.entrySet()) {
-                if(client.instanceExists(instance.getKey())) {
-                    log.info("instance [" + instance.getKey() + "] already exists, not created");
+        Runnable shardNodesCreation = () -> {
+            /**
+             * Create the shard nodes data disks
+             */
+            String lastDiskCreated = null;
+            Map<String, Map<String, String>> instancesDataDisks = new HashMap<>();
+
+            for(Integer i = 1; i <= shards; i++) {
+                Map<String, String> dataDisks = new HashMap<>();
+                StringBuilder instance_name = new StringBuilder();
+                instance_name.append(t_instanceName);
+                instance_name.append("-node-");
+                instance_name.append(i);
+                try {
+                    for(Integer d = 1; d <= disksPerShard; d++) {
+                        StringBuilder disk_name = new StringBuilder();
+                        disk_name.append(instance_name.toString());
+                        disk_name.append("-disk");
+                        disk_name.append(d);
+                        dataDisks.put(disk_name.toString(), client.createDisk(disk_name.toString(), t_diskType,
+                                dataDiskSizeGb));
+                        lastDiskCreated = disk_name.toString();
+                    }
+                    instancesDataDisks.put(instance_name.toString(), dataDisks);
+                } catch(GoogleComputeEngineException e) {
+                    log.error("cannot create data disks for [" + instance_name.toString() +
+                            "], instance not created: " + e.getMessage());
                     continue;
                 }
-
-                client.createInstance(instance.getKey(), machineType, network, rootDiskSizeGb, sourceImage,
-                        instance.getValue(), tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
-                        startupScript.getAbsolutePath(), false);
             }
-        } finally {
-            startupScript.delete();
-        }
+
+            /**
+             * Time to get all the disk resources ready to be attached
+             */
+            try {
+                Thread.currentThread().sleep(2000);
+            } catch(InterruptedException e) {}
+
+            /**
+             * Create the shard nodes instances
+             */
+            try {
+                try {
+                    for(Map.Entry<String, Map<String, String>> instance : instancesDataDisks.entrySet()) {
+                        if(client.instanceExists(instance.getKey())) {
+                            log.info("instance [" + instance.getKey() + "] already exists, not created");
+                            continue;
+                        }
+
+                        client.createInstance(instance.getKey(), t_machineType, network, rootDiskSizeGb, t_sourceImage,
+                                instance.getValue(), t_tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.CLUSTER_USER)),
+                                startupScript.getAbsolutePath(), false);
+                    }
+                    log.info("Shard nodes creation finished");
+                } catch(GoogleComputeEngineException e) {
+                    log.error("Shard nodes creation error: " + e.getMessage());
+                }
+            } finally {
+                startupScript.delete();
+            }
+        };
+
+        Thread thread = new Thread(shardNodesCreation);
+        thread.start();
     }
 
     public void deleteCluster() throws GoogleComputeEngineException {
