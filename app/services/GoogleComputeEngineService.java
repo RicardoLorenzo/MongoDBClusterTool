@@ -103,7 +103,7 @@ public class GoogleComputeEngineService {
                     .put("name", d.getName())
                     .put("description", d.getDescription())
                     .put("validDiskSize", d.getValidDiskSize());
-            diskTypes.set(String.valueOf(d.getId()), type);
+            diskTypes.set(d.getName(), type);
         }
         return Json.newObject().set("diskTypes", diskTypes);
     }
