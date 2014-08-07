@@ -88,6 +88,10 @@ public class YCSBTestRunner extends TestRunner {
             SSHClient client = connect(jumpAddress);
             switch(phase) {
                 case Test.PHASE_LOAD: {
+                        client.forwardConnect(randomTestNode, ConfigurationService.TEST_USER, 22);
+                        if(client.sendForwardCommand(randomTestNode, "ls /etc/mongos.js") != 0) {
+                            throw new TestException("Test nodes are still running the initial configuration process, you must wait at least 60 seconds before run the first test");
+                        }
                         File f = File.createTempFile("init-test", ".js");
                         try {
                             FilePermissions permissions = new FilePermissions(FilePermissions.READ + FilePermissions.WRITE,
@@ -98,7 +102,6 @@ public class YCSBTestRunner extends TestRunner {
                             sb.append("sh.enableSharding(\"ycsb\");\n");
                             sb.append("sh.shardCollection(\"ycsb.usertable\", { \"_id\": \"hashed\" });\n");
                             FileUtils.writeFile(f, sb.toString());
-                            client.forwardConnect(randomTestNode, ConfigurationService.TEST_USER, 22);
                             client.sendForwardFile(randomTestNode, f, "/tmp/init-test.js", permissions);
                             client.sendForwardCommand(randomTestNode, "mongo /tmp/init-test.js");
                         } catch(FileLockException e) {
