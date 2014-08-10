@@ -12,12 +12,8 @@
             </h4>
         </div>
         <div class="panel-body">
-            <div id="operations-spinner" class="spinner">
-                <p class="text-center text-info">Waiting for the first measurements ..</p>
-                <p class="text-center"><img src='@routes.Assets.at("images/spinner.gif")'/></p>
-            </div>
-            <div style="width: 98%">
-                <canvas id="operations"></canvas>
+            <div id="operationsChart">
+                <svg style="height: 400px;"></svg>
             </div>
         </div>
     </div>
@@ -29,12 +25,8 @@
             </h4>
         </div>
         <div class="panel-body">
-            <div id="latencies-spinner" class="spinner">
-                <p class="text-center text-info">Waiting for the first measurements ..</p>
-                <p class="text-center"><img src='@routes.Assets.at("images/spinner.gif")'/></p>
-            </div>
-            <div style="width: 98%">
-                <canvas id="latencies"></canvas>
+            <div id="latenciesChart">
+                <svg style="height: 400px;"></svg>
             </div>
         </div>
     </div>

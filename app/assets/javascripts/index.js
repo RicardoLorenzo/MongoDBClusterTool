@@ -1,8 +1,29 @@
+var nodeData = new Array();
 
 function getOperations() {
     var ws = new WebSocket("ws://localhost:9000/gce/socket/operations")
     //var ws = $("#gce-operations").data("ws-url");
     var lastOperationDate = null;
+    fillNodeData();
+    var nodesChart = nv.models.discreteBarChart();
+    nv.addGraph(function() {
+        nodesChart
+            .x(function(d) { return d.label })
+            .y(function(d) { return d.value })
+            //.staggerLabels(true)
+            .tooltips(false)
+            .showValues(true);
+
+        nodesChart.yAxis
+                    .axisLabel("Nodes")
+                    .tickFormat(d3.format(',f'));
+        d3.select('#nodesChart svg')
+            .datum(nodeData)
+            .transition().duration(500)
+            .call(nodesChart);
+        nv.utils.windowResize(nodesChart.update);
+        return nodesChart;
+    });
 
     ws.onopen = function() {
         lastOperationDate = new Date().toISOString();
@@ -15,7 +36,6 @@ function getOperations() {
         var message = JSON.parse(event.data);
         switch(message.type) {
             case "operation":
-                removeOperationsSpinner();
                 addOperationToList(message);
                 break;
         }
@@ -35,6 +55,12 @@ function getOperations() {
             }
             ws.send(JSON.stringify(message))
             lastOperationDate = new Date().toISOString();
+            fillNodeData();
+            d3.select('#nodesChart svg')
+                .datum(nodeData)
+                .transition().duration(500)
+                .call(nodesChart);
+            nv.utils.windowResize(nodesChart.update);
         }, 4000);
 }
 
@@ -105,99 +131,81 @@ function addOperationToList(message) {
     operations.insertBefore(item, operations.firstChild);
 }
 
-function graphInstancesData() {
-    var nodesData, runningData;
-    var num_shards = 0, num_running_shards = 0, num_config = 0, num_running_config = 0, num_puppet = 0, num_running_puppet = 0, a = 0;
-
-    window.onload = $.ajax({
-          dataType: "json",
-          url: '/gce/ws/instances',
-          success: function(data) {
-                $.each(data.instances, function(key, val) {
-                    if($.inArray("shard", val.tags) != -1) {
-                        num_shards++;
-                        if(val.status == "RUNNING") {
-                            num_running_shards++;
-                        }
-                    }
-                    if($.inArray("config", val.tags) != -1) {
-                        num_config++;
-                        if(val.status == "RUNNING") {
-                            num_running_config++;
-                        }
-                    }
-                    if($.inArray("puppet", val.tags) != -1) {
-                        num_puppet++;
-                        if(val.status == "RUNNING") {
-                            num_running_puppet++;
-                        }
-                    }
-                });
-                nodesData = [
-                    {
-                        value: num_shards,
-                        color:"#F7464A",
-                        highlight: "#FF5A5E",
-                        label: "Shards"
-                    },
-                    {
-                        value: num_config,
-                        color: "#46BFBD",
-                        highlight: "#5AD3D1",
-                        label: "Config"
-                    },
-                    {
-                        value: num_puppet,
-                        color: "#FDB45C",
-                        highlight: "#FFC870",
-                        label: "Puppet"
-                    }
-
-                ];
-                runningData = {
-                    labels : ["Shard nodes","Config nodes","Puppet nodes"],
-                    datasets : [
-                        {
-                            fillColor : "rgba(220,220,220,0.5)",
-                            strokeColor : "rgba(220,220,220,0.8)",
-                            highlightFill: "rgba(220,220,220,0.75)",
-                            highlightStroke: "rgba(220,220,220,1)",
-                            data : [num_shards, num_config, num_puppet]
-                        },
-                        {
-                            fillColor : "rgba(151,187,205,0.5)",
-                            strokeColor : "rgba(151,187,205,0.8)",
-                            highlightFill : "rgba(151,187,205,0.75)",
-                            highlightStroke : "rgba(151,187,205,1)",
-                            data : [num_running_shards, num_running_config, num_running_puppet]
-                        }
-                    ]
+function fillNodeData() {
+    var deferred = $.Deferred();
+    createRequest().success(function(data) {
+        var nodeData = new Array();
+        var num_shards = 0, num_running_shards = 0, num_config = 0, num_running_config = 0,
+            num_puppet = 0, num_running_puppet = 0;
+        $.each(data.instances, function(key, val) {
+            if($.inArray("shard", val.tags) != -1) {
+                num_shards++;
+                if(val.status == "RUNNING") {
+                    num_running_shards++;
                 }
-
-                var nodectx = document.getElementById("nodes");
-                if(nodectx) {
-                    window.nodeData = new Chart(nodectx.getContext("2d")).Pie(nodesData);
+            }
+            if($.inArray("config", val.tags) != -1) {
+                num_config++;
+                if(val.status == "RUNNING") {
+                    num_running_config++;
                 }
-
-                var runningctx = document.getElementById("running");
-                if(runningctx) {
-                    window.runningDataChart = new Chart(runningctx.getContext("2d")).Bar(runningData, {
-                        responsive : true
-                    });
+            }
+            if($.inArray("puppet", val.tags) != -1) {
+                num_puppet++;
+                if(val.status == "RUNNING") {
+                    num_running_puppet++;
                 }
-          },
-          error: function(data) {
-                //None;
-          }
+            }
+        });
+        var labelData = new Array();
+        labelData.push({
+            label: "Shard nodes",
+            color: "#cccccc",
+            value: num_shards
+        });
+        labelData.push({
+            label: "Running shard nodes",
+            color: "#777777",
+            value: num_running_shards
+        });
+        labelData.push({
+            label: "Config nodes",
+            color: "#cccccc",
+            value: num_config
+        });
+        labelData.push({
+            label: "Running config nodes",
+            color: "#777777",
+            value: num_running_config
+        });
+        labelData.push({
+            label: "Puppet nodes",
+            color: "#cccccc",
+            value: num_puppet
+        });
+        labelData.push({
+            label: "Running puppet nodes",
+            color: "#777777",
+            value: num_running_puppet
+        });
+        nodeData.push({
+            key: "-",
+            values: labelData
+        });
+        deferred.resolve(Array.prototype.slice.call(nodeData));
+    },
+    function() {
+        deferred.reject();
+    });
+    var promise = deferred.promise();
+    return promise.done(function(data) {
+        nodeData = data;
     });
 }
 
-function removeOperationsSpinner() {
-    var spinner = document.getElementById('spinner');
-    if(spinner) {
-        var spinner = document.getElementById("spinner");
-        spinner.outerHTML = "";
-        delete spinner;
-    }
+function createRequest() {
+    return $.ajax({
+        dataType: "json",
+        url: '/gce/ws/instances'
+    });
 }
-

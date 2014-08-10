@@ -2,17 +2,49 @@
 function getMeasurements() {
     var ws = new WebSocket("ws://localhost:9000/test/socket/measurements")
     //var ws = $("#gce-operations").data("ws-url");
-    var operationsCtx = document.getElementById("operations");
-    var latenciesCtx = document.getElementById("latencies");
-    var operationsData = loadOperationsData({}, {
-        node: "-",
-        time: "-1",
-        insertcount: 0
+
+    var testNodeColors = {};
+    var operationsData = loadOperationsData([], null);
+    var latenciesData = loadOperationsData([], null);
+    var operationsChart = nv.models.lineChart();
+    var latenciesChart = nv.models.lineChart();
+    nv.addGraph(function() {
+        operationsChart
+            .useInteractiveGuideline(true);
+
+        operationsChart.xAxis
+            .axisLabel("Time (seconds)")
+            .tickFormat(d3.format(',r'));
+
+        operationsChart.yAxis
+            .axisLabel("Operations")
+            .tickFormat(d3.format(',f'));
+
+        d3.select('#operationsChart svg')
+            .datum(operationsData)
+            .transition().duration(500)
+            .call(operationsChart);
+
+        return operationsChart;
     });
-    var latenciesData = loadOperationsData({}, {
-        node: "-",
-        time: "-1",
-        insertaverage: 0
+    nv.addGraph(function() {
+        latenciesChart
+            .useInteractiveGuideline(true);
+
+        latenciesChart.xAxis
+            .axisLabel("Time (seconds)")
+            .tickFormat(d3.format(',r'));
+
+        latenciesChart.yAxis
+            .axisLabel("Latency (ms)")
+            .tickFormat(d3.format(',.02f'));
+
+        d3.select('#latenciesChart svg')
+            .datum(latenciesData)
+            .transition().duration(500)
+            .call(latenciesChart);
+
+        return latenciesChart;
     });
 
     ws.onopen = function() {
@@ -26,11 +58,20 @@ function getMeasurements() {
         var message = JSON.parse(event.data);
         switch(message.type) {
             case "measure":
-                removeAllSpinner();
-                operationsData = loadOperationsData(operationsData, message);
-                latenciesData = loadLatenciesData(latenciesData, message);
-                new Chart(operationsCtx.getContext("2d")).Line(operationsData, { responsive : true });
-                new Chart(latenciesCtx.getContext("2d")).Line(latenciesData, { responsive : true });
+                operationsData = loadOperationsData(operationsData, message, testNodeColors);
+                latenciesData = loadLatenciesData(latenciesData, message, testNodeColors);
+                d3.select('#operationsChart svg')
+                    .datum(operationsData)
+                    .transition().duration(500)
+                    .call(operationsChart);
+                d3.select('#latenciesChart svg')
+                    .datum(latenciesData)
+                    .transition().duration(500)
+                    .call(latenciesChart);
+                nv.utils.windowResize(function() {
+                   operationsChart.update();
+                   latenciesChart.update();
+                });
                 break;
         }
     };
@@ -40,132 +81,75 @@ function getMeasurements() {
     };
 
     setInterval(function() {
-            var message = {
-                action: "retrieve"
-            };
-            ws.send(JSON.stringify(message))
-        }, 1000);
+        var message = {
+            action: "retrieve"
+        };
+        ws.send(JSON.stringify(message))
+    }, 1000);
 }
 
-function loadOperationsData(data, message) {
-    var l_index = -1;
-    var ds_index = -1;
-    if(!data.datasets) {
-        data = {
-            labels: [],
-            datasets: []
-        }
+function pickColor(testNodeColors, nodeAddress) {
+    if(!testNodeColors[nodeAddress]) {
+        testNodeColors[nodeAddress] = "#" + Math.floor(Math.random()*16777215).toString(16);
     }
-    if(data.datasets.length >= 2) {
-        for(var i = 0; i < data.datasets.length; i++) {
-            if(data.datasets[i].label != "-") {
-                continue;
-            }
-            ds_index = i;
-            break;
-        }
-        if(ds_index != -1) {
-            data.datasets.splice(ds_index, 1);
-        }
+    return testNodeColors[nodeAddress];
+}
+
+function loadOperationsData(data, message, testNodeColors) {
+    var addTestNode = true;
+    if(!data) {
+        data = Array();
+    } else {
+        data = Array.prototype.slice.call(data);
     }
-    for(var i = 0; i < data.labels.length; i++) {
-        if(data.labels[i] != message.time) {
-            continue;
+    if(!message) {
+        return [];
+    }
+    data.forEach(function(o) {
+        if(o.key == message.node) {
+            o.values.push({ x: (message.time / 1000) , y: message.insertcount });
+            addTestNode = false;
         }
-        l_index = i;
-        break;
-    }
-    ds_index = -1;
-    for(var i = 0; i < data.datasets.length; i++) {
-        if(data.datasets[i].label != message.node) {
-            continue;
-        }
-        ds_index = i;
-        break;
-    }
-    if(l_index == -1) {
-        data.labels.push("" + message.time);
-    }
-    if(ds_index == -1) {
-        var color = "" +
-          Math.floor(Math.random()*256) + "," +
-          Math.floor(Math.random()*256) + "," +
-          Math.floor(Math.random()*256);
-        data.datasets.push({
-            label: message.node,
-            fillColor: "rgba(" + color + ",0.2)",
-            strokeColor: "rgba(" + color + ",1)",
-            pointColor: "rgba(" + color + ",1)",
-            pointStrokeColor: "#fff",
-            pointHighlightFill: "#fff",
-            pointHighlightStroke: "rgba(" + color + ",1)",
-            data: [ 0 ]
+    });
+    if(addTestNode) {
+        data.push({
+            key: message.node,
+            color: pickColor(testNodeColors, message.node),
+            values: []
         });
-        ds_index = data.datasets.length - 1;
+        data[data.length - 1].values.push({ x: (message.time / 1000) , y: message.insertcount });
     }
-    data.datasets[ds_index].data.push(message.insertcount);
     return data;
 }
 
-function loadLatenciesData(data, message) {
-    var l_index = -1;
-    var ds_index = -1;
-    if(!data.datasets) {
-        data = {
-            labels: [],
-            datasets: []
-        }
+function loadLatenciesData(data, message, testNodeColors) {
+    var addTestNode = true;
+    if(!data) {
+        data = Array();
+    } else {
+        data = Array.prototype.slice.call(data);
     }
-    if(data.datasets.length >= 2) {
-        for(var i = 0; i < data.datasets.length; i++) {
-            if(data.datasets[i].label != "-") {
-                continue;
-            }
-            ds_index = i;
-            break;
-        }
-        if(ds_index != -1) {
-            data.datasets.splice(ds_index, 1);
-        }
+    if(!message) {
+        return [];
     }
-    for(var i = 0; i < data.labels.length; i++) {
-        if(data.labels[i] != message.time) {
-            continue;
+    data.forEach(function(o) {
+        if(o.key == message.node) {
+            o.values.push({ x: (message.time / 1000) , y: message.insertaverage });
+            addTestNode = false;
         }
-        l_index = i;
-        break;
-    }
-    ds_index = -1;
-    for(var i = 0; i < data.datasets.length; i++) {
-        if(data.datasets[i].label != message.node) {
-            continue;
-        }
-        ds_index = i;
-        break;
-    }
-    if(l_index == -1) {
-        data.labels.push("" + message.time);
-    }
-    if(ds_index == -1) {
-        var color = "" +
-          Math.floor(Math.random()*256) + "," +
-          Math.floor(Math.random()*256) + "," +
-          Math.floor(Math.random()*256);
-        data.datasets.push({
-            label: message.node,
-            fillColor: "rgba(" + color + ",0.2)",
-            strokeColor: "rgba(" + color + ",1)",
-            pointColor: "rgba(" + color + ",1)",
-            pointStrokeColor: "#fff",
-            pointHighlightFill: "#fff",
-            pointHighlightStroke: "rgba(" + color + ",1)",
-            data: [ 0 ]
+    });
+    if(addTestNode) {
+        data.push({
+            key: message.node,
+            color: pickColor(testNodeColors, message.node),
+            values: []
         });
-        ds_index = data.datasets.length - 1;
+        data[data.length - 1].values.push({ x: (message.time / 1000) , y: message.insertaverage });
     }
-    data.datasets[ds_index].data.push(message.insertaverage);
     return data;
 }
+
+
 
 function removeAllSpinner() {
     var spinner = document.getElementById("operations-spinner");
