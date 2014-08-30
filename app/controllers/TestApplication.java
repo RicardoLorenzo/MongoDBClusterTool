@@ -33,6 +33,7 @@ import services.GoogleAuthenticationService;
 import services.GoogleComputeEngineService;
 import utils.gce.GoogleComputeEngineException;
 import utils.gce.auth.GoogleComputeEngineAuthImpl;
+import utils.gce.storage.GoogleCloudStorageException;
 import utils.play.BugWorkaroundForm;
 import utils.security.SSHKey;
 import utils.security.SSHKeyStore;
@@ -147,6 +148,8 @@ public class TestApplication extends Controller {
                             null
                     ));
                 } catch(GoogleComputeEngineException e) {
+                    return ok(views.html.error.render(e.getMessage()));
+                } catch(GoogleCloudStorageException e) {
                     return ok(views.html.error.render(e.getMessage()));
                 }
             }

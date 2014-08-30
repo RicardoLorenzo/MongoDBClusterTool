@@ -15,7 +15,34 @@ public class TestConfiguration {
     private static final Integer MONGODB_SHARD_INIT_PORT = 27040;
     public static final String YCSB_DIRECTORY = "YCSB";
 
-    public static String getNodeStartupScriptContent(String serverName, List<String> configNodeNames,
+    public static String getNodeStartupScriptContent(String serverName, String remoteScriptUrl) throws IOException, GoogleComputeEngineException {
+        StringBuilder sb = new StringBuilder();
+        sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
+        sb.append("\nsetProxy ");
+        sb.append(serverName);
+        sb.append("\ncheckConnection http://http.debian.net/debian/dists/wheezy/Release.gpg\n");
+        sb.append("installPackage openjdk-7-jdk\n");
+        sb.append("installPackage git\n");
+        sb.append("installPackage maven\n");
+        sb.append("runCommand apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10\n");
+        sb.append("echo \"deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen\" >");
+        sb.append(" /etc/apt/sources.list.d/mongodb.list\n");
+        sb.append("installPackage mongodb-org-mongos\n");
+        sb.append("installPackage mongodb-org-shell\n\n");
+
+        sb.append("if ! [ -e \"/etc/mongodbconfig.sh\" ]; then\n");
+        sb.append("  checkConnection ");
+        sb.append(remoteScriptUrl);
+        sb.append("\n  wget -O /etc/mongodbconfig.sh ");
+        sb.append(remoteScriptUrl);
+        sb.append("\n");
+        sb.append("  bash /etc/mongodbconfig.sh\n");
+        sb.append("fi\n");
+
+        return sb.toString();
+    }
+
+    public static String getNodeRemoteStartupScriptContent(String serverName, List<String> configNodeNames,
                                                      List<String> shardNodeNames)
             throws IOException, GoogleComputeEngineException {
         Integer shardPorcesses = ConfigurationService.getClusterNodeProcesses();
@@ -29,18 +56,6 @@ public class TestConfiguration {
 
         StringBuilder sb = new StringBuilder();
         sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
-        sb.append("\nsetProxy ");
-        sb.append(serverName);
-        sb.append("\ncheckConnection http://http.debian.net/debian/dists/wheezy/Release.gpg\n");
-        sb.append("installPackage openjdk-7-jdk\n");
-        sb.append("installPackage git\n");
-        sb.append("installPackage maven\n");
-        sb.append("runCommand apt-key adv --keyserver keyserver.ubuntu.com --recv 7F0CEB10\n");
-        sb.append("echo \"deb http://downloads-distro.mongodb.org/repo/debian-sysvinit dist 10gen\" >");
-        sb.append(" /etc/apt/sources.list.d/mongodb.list\n");
-        sb.append("installPackage mongodb-org-mongos\n");
-        sb.append("installPackage mongodb-org-shell\n");
-
         /**
          * An assumption here, is the fact that the SSH user is created,
          * and it is normally
@@ -131,12 +146,12 @@ public class TestConfiguration {
             }
         }
         sb.append("\" > /etc/mongos.js\n");
-        sb.append(" mongo /etc/mongos.js\n");
         sb.append("fi\n");
+        sb.append("mongo /etc/mongos.js\n");
         return sb.toString();
     }
 
-    public static String getJumpServerStartupScriptContent(String networkRange) throws IOException {
+    public static String getJumpServerStartupScriptContent(String networkRange, String testNodesStartupScriptUrl) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append(PlayConfiguration.getFileContent("scripts/startup-common.sh"));
 
@@ -164,6 +179,13 @@ public class TestConfiguration {
         sb.append(YCSB_REPOSITORY);
         sb.append(" /var/www/YCSB.git\n");
         sb.append("PWD=$(pwd);\ncd /var/www/YCSB.git/\ngit update-server-info\ncd $PWD\n");
+
+        /**
+         * Startup script for test nodes
+         */
+        sb.append("wget -O /var/www/startup.sh \"");
+        sb.append(testNodesStartupScriptUrl);
+        sb.append("\"\n");
 
         return sb.toString();
     }

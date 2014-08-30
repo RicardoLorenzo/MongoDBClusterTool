@@ -3,12 +3,15 @@ package utils.test;
 import utils.test.data.Measure;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Created by ricardolorenzo on 31/07/2014.
  */
 public abstract class TestRunner {
+    private static ConcurrentMap<String, String> errors;
     private static Queue<Measure> queue = new ConcurrentLinkedQueue<>();
     private static Map<String, Thread> testThreads = new HashMap<>();
     private static Map<String, Object> attributeObjects = new HashMap<>();
@@ -58,11 +61,12 @@ public abstract class TestRunner {
     public void runTest(Integer phase, String jumpAddress, List<String> testNodeAddresses) throws TestException {
         try {
             Integer nodeCount = 1;
+            errors = new ConcurrentHashMap<>();
             initializeTasks(phase, jumpAddress, testNodeAddresses);
             for(String testNodeAddress : testNodeAddresses) {
                 try {
                     preRunTask(jumpAddress, testNodeAddress);
-                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, jumpAddress, testNodeAddress, getTest(phase, nodeCount));
+                    TestNodeRunner runner = new YCSBTestNodeRunner(queue, errors, jumpAddress, testNodeAddress, getTest(phase, nodeCount));
                     nodeCount++;
                     Thread t = new Thread(runner);
                     t.setName(testNodeAddress);

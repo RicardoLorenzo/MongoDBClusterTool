@@ -181,6 +181,8 @@ mount {
 
 start_microshards() {
   configure_cgroups
+  ulimit -n 64000
+  ulimit -u 64000
   for PROCESS in $(seq 1 1 $PROCESSES); do
     local PIDFILE=/var/run/mongod_$PROCESS.pid
     if ! [ -e "$PIDFILE" ]; then

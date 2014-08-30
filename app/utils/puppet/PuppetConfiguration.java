@@ -85,10 +85,10 @@ public class PuppetConfiguration {
         sb.append("node mongodb {\n  include mongodb-base\n}\n\n");
         sb.append("node /^");
         sb.append(clusterName);
-        sb.append("-conf-node-\\d+$/ inherits mongodb {\n  include mongodb-conf\n}\n\n");
+        sb.append("-conf-node-\\d+$/ inherits mongodb {\n include ulimit\ninclude mongodb-conf\n}\n\n");
         sb.append("node /^");
         sb.append(clusterName);
-        sb.append("-shard-node-\\d+$/ inherits mongodb {\n  include mongodb-shard\n}\n\n");
+        sb.append("-shard-node-\\d+$/ inherits mongodb {\n include ulimit\ninclude mongodb-shard\n}\n\n");
         sb.append("import 'mongodb-base.pp'\nimport 'mongodb-conf.pp'\nimport 'mongodb-shard.pp'\n");
         return sb.toString();
     }
@@ -109,7 +109,7 @@ public class PuppetConfiguration {
         return confClass.toString();
     }
 
-    public static String generateMongoShardClassManifest(String diskRaid, String dataFileSystem)
+    public static String generateMongoShardClassManifest()
             throws PuppetConfigurationException {
         PuppetClass shardClass = new PuppetClass("mongodb-shard");
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/mongodb-shards.conf")
@@ -121,7 +121,9 @@ public class PuppetConfiguration {
                 .setStringProperty("owner", "mongodb")
                 .setStringProperty("group", "mongodb")
                 .setProperty("mode", "755")
-                .setStringProperty("ensure", "directory"));
+                .setStringProperty("ensure", "directory")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/usr/local/bin/puppet-disk-format")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
@@ -138,6 +140,8 @@ public class PuppetConfiguration {
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongod")
                 .setStringProperty("command", "/usr/sbin/update-rc.d -f mongod remove && /usr/sbin/service mongod stop")
                 .setNotify(PuppetModule.TYPE_EXEC, "test-mongodb-microshards")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongodb-10gen"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "disk-format")
                 .setProperty("onlyif", "\\\"/usr/bin/test -e " + MONGODB_MOUNT_DIR + " -a 0 -eq \\$(ls " +
@@ -157,6 +161,8 @@ public class PuppetConfiguration {
                 .setProperty("ensure", "running")
                 .setProperty("enable", "true")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "disk-format")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit")
                 .setRequire(PuppetModule.TYPE_EXEC, "mongod")
                 .setRequire(PuppetModule.TYPE_FILE, "/etc/init.d/mongodb-microshards")
                 .setRequire(PuppetModule.TYPE_EXEC, "test-mongodb-microshards"));
@@ -173,10 +179,14 @@ public class PuppetConfiguration {
                 .setStringProperty("command", "/usr/sbin/update-grub")
                 .setStringProperty("refreshonly", "true")
                 .setNotify(PuppetModule.TYPE_EXEC, "reboot")
-                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/default/grub"));
+                .setSubscribe(PuppetModule.TYPE_FILE, "/etc/default/grub")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit"));
         shardClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "reboot")
                 .setStringProperty("command", "/sbin/reboot")
                 .setStringProperty("refreshonly", "true")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "update-grub"));
         return shardClass.toString();
     }
@@ -190,6 +200,16 @@ public class PuppetConfiguration {
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_SERVICE, "ntp")
                 .setProperty("ensure", "running")
                 .setProperty("enable", "true"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setStringProperty("ulimit_domain", "*")
+                .setStringProperty("ulimit_type", "hard")
+                .setStringProperty("ulimit_item", "nofile")
+                .setStringProperty("ulimit_value", "64000"));
+        baseClass.setModule(new PuppetModule(PuppetModule.TYPE_ULIMITS, "processesLimit")
+                .setStringProperty("ulimit_domain", "*")
+                .setStringProperty("ulimit_type", "hard")
+                .setStringProperty("ulimit_item", "nproc")
+                .setStringProperty("ulimit_value", "64000"));
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_FILE, "/etc/hosts")
                 .setStringProperty("owner", "root")
                 .setStringProperty("group", "root")
@@ -221,6 +241,8 @@ public class PuppetConfiguration {
         baseClass.setModule(new PuppetModule(PuppetModule.TYPE_EXEC, "mongodb-10gen")
                 .setStringProperty("command", "/usr/bin/apt-get install -y --force-yes mongodb-org-server mongodb-org-tools mongodb-org-shell")
                 .setSubscribe(PuppetModule.TYPE_EXEC, "apt-get update")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "openFilesLimit")
+                .setRequire(PuppetModule.TYPE_ULIMITS, "processesLimit")
                 .setRequire(PuppetModule.TYPE_EXEC, "apt-get update")
                 .setRequire(PuppetModule.TYPE_APT_SOURCE, "mongodb"));
         return baseClass.toString();
@@ -292,6 +314,7 @@ public class PuppetConfiguration {
         sb.append("  wget -O /tmp/puppet-timezone.zip https://github.com/saz/puppet-timezone/archive/master.zip\n");
         sb.append("  cd /tmp && unzip puppet-timezone.zip\n  cd puppet-timezone-master && puppet module build .\n");
         sb.append("  puppet module install pkg/saz-timezone-*.tar.gz\n  puppet module install puppetlabs-apt\n");
+        sb.append("  puppet module install arioch-ulimit\n");
         sb.append("  makeDirectory ");
         sb.append(getPuppetTemplatesDirectory());
         sb.append("/hosts\n  cat /etc/hosts > ");
@@ -326,7 +349,7 @@ public class PuppetConfiguration {
         sb.append("/mongodb-base.pp\n");
         sb.append("  echo \"");
         try {
-            sb.append(generateMongoShardClassManifest(diskRaid, dataFileSystem));
+            sb.append(generateMongoShardClassManifest());
         } catch(PuppetConfigurationException e) {}
         sb.append("\" > ");
         sb.append(getPuppetManifestsDirectory());
@@ -388,6 +411,10 @@ public class PuppetConfiguration {
         sb.append("}\n");
         sb.append("installPackage puppetmaster configPuppet\n");
         return sb.toString();
+    }
+
+    private static String generateUlimitModule() {
+        return null;
     }
 
     private static String formatScriptForEcho(String scriptContent) {

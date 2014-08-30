@@ -209,12 +209,40 @@ public class ConfigurationService {
         }
     }
 
-    public static File getTestJumpNodeStartupScriptFile(String networkName) throws GoogleComputeEngineException {
-        checkGoogleAuthentication();
+    public static File getTestJumpNodeStartupScriptFile(String clusterName, String networkName) throws GoogleComputeEngineException,
+            GoogleCloudStorageException {
         try {
+            String scriptUrl;
             File f = getStartupScriptFile();
-            FileUtils.writeFile(f, TestConfiguration.getJumpServerStartupScriptContent(
-                    googleComputeService.getNetworkRange(networkName)));
+
+            try {
+                checkGoogleAuthentication();
+                if(bucketId == null || bucketId.isEmpty()) {
+                    throw new GoogleCloudStorageException("parameter 'google.bucketId' not specified in the configuration");
+                }
+                StringBuilder scriptPath = new StringBuilder();
+                scriptPath.append("autostart/");
+                scriptPath.append(clusterName);
+                scriptPath.append("/test_autostart.sh");
+                /**
+                 * There is a limit of 32K for the metadata in Google Compute Engine. To avoid any size problems
+                 * the application upload the file to Google Storage and store the link in the metadata.
+                 *
+                 * Limit can be exceeded in the case of a lot of cluster nodes.
+                 */
+                String scriptContent = TestConfiguration.getNodeRemoteStartupScriptContent(
+                        getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP)),
+                        googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_CONF, clusterName)),
+                        googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName)));
+                scriptUrl =  googleStorageClient.putFile(bucketId, scriptPath.toString(),
+                        "plain/text", scriptContent.getBytes());
+
+                FileUtils.writeFile(f, TestConfiguration.getJumpServerStartupScriptContent(
+                        googleComputeService.getNetworkRange(networkName), scriptUrl));
+            } catch(IOException e) {
+                throw new GoogleComputeEngineException("cannot create the startup script: " + e.toString());
+            }
+
             return f;
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
@@ -223,19 +251,30 @@ public class ConfigurationService {
         }
     }
 
-    public static File getTestNodeStartupScriptFile(String clusterName) throws GoogleComputeEngineException {
+    public static File getTestNodeStartupScriptFile(String clusterName) throws GoogleComputeEngineException,
+            GoogleCloudStorageException {
         try {
             File f = getStartupScriptFile();
+
             FileUtils.writeFile(f, TestConfiguration.getNodeStartupScriptContent(
                     getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP)),
-                    googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_CONF, clusterName)),
-                    googleComputeService.getInstancesNames(Arrays.asList(ConfigurationService.NODE_TAG_SHARD, clusterName))));
+                    getTestNodeStartupScriptUrl(clusterName))
+            );
+
             return f;
         } catch(IOException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         } catch(FileLockException e) {
             throw new GoogleComputeEngineException("cannot write the startup script: " + e.toString());
         }
+    }
+
+    private static String getTestNodeStartupScriptUrl(String clusterName) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("http://");
+        sb.append(getInternalServerName(getServerName(clusterName, NODE_NAME_TEST_JUMP)));
+        sb.append("/startup.sh");
+        return sb.toString();
     }
 
     public static List<String> listPuppetFiles(final Integer type) throws PuppetConfigurationException, GoogleComputeEngineException {

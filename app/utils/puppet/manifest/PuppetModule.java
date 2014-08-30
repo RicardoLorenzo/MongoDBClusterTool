@@ -19,6 +19,7 @@ public class PuppetModule {
     public static final String TYPE_GROUP = "Group";
     public static final String TYPE_APT_KEY = "Apt::Key";
     public static final String TYPE_APT_SOURCE = "Apt::Source";
+    public static final String TYPE_ULIMITS = "ulimit::rule";
     private String type;
     private String name;
     private Map<String, String> properties;
@@ -43,6 +44,7 @@ public class PuppetModule {
             case TYPE_GROUP:
             case TYPE_APT_KEY:
             case TYPE_APT_SOURCE:
+            case TYPE_ULIMITS:
                 // is valid type
                 break;
             default:

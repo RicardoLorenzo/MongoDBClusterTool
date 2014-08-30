@@ -45,6 +45,7 @@ public class SSHClient {
     private InputStream pipedStream;
     private Map<String, InputStream> forwardPipedStreams;
     private byte[] output;
+    private byte[] error;
 
     public SSHClient(String host, int port) throws IOException {
         JSch.setLogger(new SSHLogger());
@@ -428,6 +429,27 @@ public class SSHClient {
                 return new String(out.toByteArray());
             }
         }
+    }
+
+    public int getPipedCommandStatus() throws SSHException {
+        if(this.pipedChannel != null) {
+            throw new SSHException("channel not available, not connected?");
+        }
+        if(this.pipedChannel.isClosed()) {
+            return this.pipedChannel.getExitStatus();
+        }
+        return 0;
+    }
+
+    public int getForwardPipedCommandStatus(String host) throws SSHException {
+        Channel channel = this.forwardPipedChannels.get(host);
+        if(channel == null) {
+            throw new SSHException("channel not available for " + host + ", not connected?");
+        }
+        if(channel.isClosed()) {
+            return channel.getExitStatus();
+        }
+        return 0;
     }
 
     /**

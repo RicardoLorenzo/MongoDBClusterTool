@@ -494,7 +494,7 @@ public class GoogleComputeEngineService {
              * Time to get all the disk resources ready to be attached
              */
             try {
-                Thread.currentThread().sleep(2000);
+                Thread.sleep(2000);
             } catch(InterruptedException e) {}
 
             /**
@@ -547,7 +547,7 @@ public class GoogleComputeEngineService {
     }
 
     public void createTestNodes(Integer testNodes, String machineType, String sourceImage, Integer rootDiskSizeGb)
-            throws GoogleComputeEngineException {
+            throws GoogleComputeEngineException, GoogleCloudStorageException {
         List<String> tags;
         SSHKey sshKey = SSHKeyFactory.generateKey();
         StringBuilder machinePrefix = new StringBuilder();
@@ -611,7 +611,7 @@ public class GoogleComputeEngineService {
             if(networkName.contains("/")) {
                 networkName = networkName.substring(networkName.lastIndexOf("/") + 1);
             }
-            File startupScript = ConfigurationService.getTestJumpNodeStartupScriptFile(networkName);
+            File startupScript = ConfigurationService.getTestJumpNodeStartupScriptFile(clusterName, networkName);
             try {
                 client.createInstance(instanceName, machinePrefix.toString().concat("n1-standard-1"), Arrays.asList(clusterNetwork),
                         rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.TEST_USER)),
@@ -623,27 +623,46 @@ public class GoogleComputeEngineService {
             log.info("instance [" + instanceName + "] already exists, not created");
         }
 
-        instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_TEST);
-        File startupScript = ConfigurationService.getTestNodeStartupScriptFile(clusterName);
-        tags = Arrays.asList(ConfigurationService.NODE_TAG_TEST, clusterName);
-        try {
-            for(Integer i = 1; i <= testNodes; i++) {
-                StringBuilder instance_name = new StringBuilder();
-                instance_name.append(instanceName);
-                instance_name.append("-node-");
-                instance_name.append(i);
+        /**
+         * Put the test node creation task in a background thread
+         */
+        final File t_startupScript = ConfigurationService.getTestNodeStartupScriptFile(clusterName);
+        final String t_instanceName = ConfigurationService.getServerName(clusterName, ConfigurationService.NODE_NAME_TEST);
+        final List<String> t_tags = Arrays.asList(ConfigurationService.NODE_TAG_TEST, clusterName);
+        final String t_machineType = machineType;
+        final String t_sourceImage = sourceImage;
 
-                if(client.instanceExists(instance_name.toString())) {
-                    log.info("instance [" + instance_name.toString() + "] already exists, not created");
-                    continue;
+        Runnable testNodesCreation = () -> {
+            /**
+             * Time to start and configure the jump server
+             */
+            try {
+                Thread.sleep(10000);
+            } catch(InterruptedException e) {}
+
+            try {
+                for(Integer i = 1; i <= testNodes; i++) {
+                    StringBuilder instance_name = new StringBuilder();
+                    instance_name.append(t_instanceName);
+                    instance_name.append("-node-");
+                    instance_name.append(i);
+
+                    if(client.instanceExists(instance_name.toString())) {
+                        log.info("instance [" + instance_name.toString() + "] already exists, not created");
+                        continue;
+                    }
+                    client.createInstance(instance_name.toString(), t_machineType, Arrays.asList(clusterNetwork),
+                        rootDiskSizeGb, t_sourceImage, null, t_tags, Arrays.asList(sshKey.getSSHPublicKey(
+                        ConfigurationService.TEST_USER)), t_startupScript.getAbsolutePath(), false);
                 }
-                client.createInstance(instance_name.toString(), machineType, Arrays.asList(clusterNetwork),
-                        rootDiskSizeGb, sourceImage, null, tags, Arrays.asList(sshKey.getSSHPublicKey(ConfigurationService.TEST_USER)),
-                        startupScript.getAbsolutePath(), false);
+                log.info("Test nodes creation finished");
+            } catch(GoogleComputeEngineException e) {
+                log.error("Test nodes creation error: " + e.getMessage());
             }
-        } finally {
-            startupScript.delete();
-        }
+        };
+
+        Thread thread = new Thread(testNodesCreation);
+        thread.start();
     }
 
     public void deleteTestNodes() throws GoogleComputeEngineException {
