@@ -129,6 +129,8 @@ public class TestConfiguration {
         sb.append("\nlogpath = /var/log/mongos.log\nlogappend = yes\nfork = yes\n");
         sb.append("\" > /etc/mongos.conf\n");
         sb.append("fi\n");
+        sb.append("ulimit -n 64000\n");
+        sb.append("ulimit -u 64000\n");
         sb.append("mongos -f /etc/mongos.conf\n");
 
         /**
