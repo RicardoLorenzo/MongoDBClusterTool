@@ -12,7 +12,7 @@ Components
 - JSch
 - Log4j
 - YCSB
-- JSch
+- Puppet
 - JQuery
 - Bootstrap 2.3
 
